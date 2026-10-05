@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import uuid
+import zipfile
 import tkinter as tk
 from ctypes import wintypes
 from datetime import date, datetime, timedelta
@@ -25,6 +26,8 @@ HABIT_FILE = DATA_FILE.with_name("habits.json")    # {"habits": [{id, name}], "l
 GOAL_FILE = DATA_FILE.with_name("goals.json")      # [{id, title, target_hours, titles}]
 EVENT_FILE = DATA_FILE.with_name("events.json")    # {"YYYY-MM-DD": [{id, time "HH:MM", title, reminded}]}
 MANDALA_FILE = DATA_FILE.with_name("mandalart.json")  # {center, subs[8], actions[8][8], done[8][8]}
+BACKUP_DIR = DATA_FILE.parent / "backups"  # 하루 한 번 자동: YYYY-MM-DD.zip (최근 14개 보관)
+BACKUP_KEEP_DAILY, BACKUP_KEEP_OTHER = 14, 10
 
 # '13:30 회의', '오후 1시 30분 회의', '6시 반 저녁' → 일정. '3시간 공부' 처럼 뒤에 글자가 붙으면 할 일.
 UNTIMED_RE = re.compile(r"^(?:미정|종일|하루\s*종일)\s+(\S.*)$")  # '미정 KAMP 회의' → 시간 미정 일정
@@ -256,6 +259,52 @@ def save_json(path, data):
     os.replace(tmp, path)
 
 
+def _data_files():
+    """백업 대상: 데이터 폴더의 .json (임시·깨진 파일 제외)."""
+    return [f for f in sorted(DATA_FILE.parent.glob("*.json")) if ".corrupt-" not in f.name]
+
+
+def make_backup(name):
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    path = BACKUP_DIR / f"{name}.zip"
+    tmp = path.with_suffix(".tmp")
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in _data_files():
+            z.write(f, f.name)
+    os.replace(tmp, path)
+    prune_backups()
+    return path
+
+
+def prune_backups():
+    """자동(날짜 이름) 백업은 최근 14개, 수동·복원 전 백업은 최근 10개만 남김."""
+    zips = sorted(BACKUP_DIR.glob("*.zip"), key=lambda p: p.stat().st_mtime)
+    daily = [p for p in zips if re.fullmatch(r"\d{4}-\d{2}-\d{2}", p.stem)]
+    other = [p for p in zips if p not in daily]
+    for p in daily[:-BACKUP_KEEP_DAILY] + other[:-BACKUP_KEEP_OTHER]:
+        p.unlink(missing_ok=True)
+
+
+def daily_backup(today):
+    if not _data_files() or (BACKUP_DIR / f"{today.isoformat()}.zip").exists():
+        return None
+    try:
+        return make_backup(today.isoformat())
+    except OSError:  # 백업 실패가 앱 실행을 막지 않게
+        return None
+
+
+def restore_backup(path):
+    """백업의 데이터 파일로 되돌림. 설정(settings.json)은 그대로 두고, 백업에 없던 데이터 파일은 지움."""
+    with zipfile.ZipFile(path) as z:
+        names = {n for n in z.namelist() if n.endswith(".json") and "/" not in n and n != SETTINGS_FILE.name}
+        for f in _data_files():
+            if f.name != SETTINGS_FILE.name and f.name not in names:
+                f.unlink()
+        for n in names:
+            save_json(DATA_FILE.parent / n, json.loads(z.read(n).decode("utf-8")))
+
+
 class Store:
     """{"YYYY-MM-DD": [task, ...]} 형태로 JSON 파일에 저장."""
 
@@ -327,16 +376,8 @@ class App(tk.Tk):
         self.configure(bg=C["bg"])
         self.px = self.winfo_fpixels("1i") / 96  # 고DPI 배율 (캔버스 크기 보정용)
 
-        self.store = Store(DATA_FILE)
-        self.journal = load_json(JOURNAL_FILE)
-        self.deadlines = load_json(DEADLINE_FILE) or []  # [{id, title, date, group}]
-        self.moods = load_json(MOOD_FILE)
-        self.habits = load_json(HABIT_FILE) or {}
-        self.habits.setdefault("habits", [])
-        self.habits.setdefault("log", {})
-        self.goals = load_json(GOAL_FILE) or []
-        self.events = load_json(EVENT_FILE)
-        self.mandala = normalize_mandala(load_json(MANDALA_FILE))
+        daily_backup(date.today())  # 하루 한 번, 불러오기 전에 어제까지의 데이터를 백업
+        self.load_data()
         self.mandala_win = None
         self._event_minute = None
         self.pomo = None  # {"tid", "phase": focus/break/ready, "ends", "count"}
@@ -383,6 +424,33 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         # 위젯(바탕화면 고정) 모드에서 다른 곳을 클릭하면 다시 맨 뒤로
         self.bind("<FocusOut>", lambda e: self.after(150, self._back_if_unfocused))
+
+    def load_data(self):
+        """설정을 뺀 모든 데이터 파일을 읽음 (시작할 때, 백업에서 복원한 뒤)."""
+        self.store = Store(DATA_FILE)
+        self.journal = load_json(JOURNAL_FILE)
+        self.deadlines = load_json(DEADLINE_FILE) or []  # [{id, title, date, group}]
+        self.moods = load_json(MOOD_FILE)
+        self.habits = load_json(HABIT_FILE) or {}
+        self.habits.setdefault("habits", [])
+        self.habits.setdefault("log", {})
+        self.goals = load_json(GOAL_FILE) or []
+        self.events = load_json(EVENT_FILE)
+        self.mandala = normalize_mandala(load_json(MANDALA_FILE))
+
+    def reload_data(self):
+        self._diary_day = None  # 지금 일기 칸 내용으로 복원된 일기를 덮어쓰지 않게
+        self.pomo = None
+        self.load_data()
+        self._load_diary()
+        self.refresh()
+        self.after_idle(self.render_top)
+        if self.mandala_win and self.mandala_win.winfo_exists():
+            self.mandala_win.draw()
+        self._redraw_schedule()
+
+    def open_backups(self):
+        self._open_window("backup_win", BackupDialog)
 
     # ---------- settings / widget mode ----------
     def _save_settings(self):
@@ -604,6 +672,7 @@ class App(tk.Tk):
         self.menu.add_cascade(label="상단에 표시", menu=top_menu)
         self.menu.add_separator()
         self.menu.add_command(label="설정 (단축키 · 뽀모도로 · 알림)", command=self.open_settings)
+        self.menu.add_command(label="백업 · 복원", command=self.open_backups)
 
         # 상단: [일정][마감][목표] 버튼 줄 + 펼친 항목 (설정에서 항목별로 숨길 수 있음)
         self.top_box = tk.Frame(self, bg=C["bg"])
@@ -1487,6 +1556,7 @@ class App(tk.Tk):
         if date.today() != self.today:
             was_today = self.day == self.today
             self.today = date.today()
+            daily_backup(self.today)  # 켜 둔 채 날짜가 바뀌어도 하루 한 번 백업
             if self.store.split_at_midnight(self.today):
                 self.store.save()
             if was_today:
@@ -1636,6 +1706,9 @@ class App(tk.Tk):
     def register_hotkeys(self, startup=False):
         if self.hotkeys:
             self.hotkeys.stop()
+            self.hotkeys = None
+        if os.environ.get("DAILY_TODO_NO_HOTKEYS"):  # 자동 테스트: 실행 중인 앱의 단축키와 겹치지 않게
+            return []
         keys = self.settings.get("hotkeys", DEFAULT_HOTKEYS)
         bindings = {a: (k["mods"], k["vk"]) for a, k in keys.items() if k}
         self.hotkeys = HotkeyListener(bindings)
@@ -1650,7 +1723,7 @@ class App(tk.Tk):
 
     def _poll_hotkeys(self):
         try:
-            while True:
+            while self.hotkeys:
                 action = self.hotkeys.queue.get_nowait()
                 {"show": self.summon, "timer": self.hotkey_timer, "review": self.hotkey_review}[action]()
         except queue.Empty:
@@ -1923,8 +1996,12 @@ class App(tk.Tk):
         self._save_diary()
         self.settings["heartbeat"] = None  # 정상 종료 — 다음 실행 때 '꺼져 있던 동안' 확인 안 함
         self._save_settings()
-        self.after_cancel(self._tick_id)
-        self.after_cancel(self._hotkey_job)
+        self.shutdown()
+
+    def shutdown(self):
+        """예약된 콜백(타이머 갱신·다시 그리기 등)을 모두 취소하고 창을 닫음."""
+        for job in self.tk.splitlist(self.tk.call("after", "info")):
+            self.tk.call("after", "cancel", job)
         if self.hotkeys:
             self.hotkeys.stop()
         self.destroy()
@@ -2324,6 +2401,76 @@ class Dialog(tk.Toplevel):
         app._window_chrome(self)
         if focus:
             focus.focus_set()
+
+
+class BackupDialog(Dialog):
+    """자동 백업 목록 · 지금 백업 · 복원."""
+
+    def __init__(self, app):
+        super().__init__(app, "백업 · 복원")
+        top = tk.Frame(self, bg=C["bg"])
+        top.pack(fill="x")
+        tk.Label(top, text="백업", font=(FONT, 13, "bold"), bg=C["bg"], fg=C["text"]).pack(side="left")
+        app._button(top, "폴더 열기", self.open_folder, font=(FONT, 9), pady=2).pack(side="right")
+        self.primary(top, "지금 백업", self.backup_now).pack(side="right", padx=(0, 6))
+        self.hint("매일 앱을 처음 켤 때 자동으로 백업해요 (최근 14일 보관). 할 일 · 일기 · 일정 · 습관 · 목표 · 만다라트 모두 포함.\n"
+                  "복원해도 설정(창 위치·단축키 등)은 그대로이고, 복원 직전 상태도 따로 백업해 둬요.")
+        self.status = tk.Label(self, font=(FONT, 9), bg=C["bg"], fg=C["moss"], anchor="w")
+        self.status.pack(fill="x", pady=(4, 0))
+        self.section("백업 목록")
+        self.list_f = tk.Frame(self, bg=C["bg"])
+        self.list_f.pack(fill="x")
+        self.draw()
+        self.finish()
+
+    def draw(self):
+        for w in self.list_f.winfo_children():
+            w.destroy()
+        zips = sorted(BACKUP_DIR.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True) \
+            if BACKUP_DIR.exists() else []
+        if not zips:
+            self.hint("아직 백업이 없어요", self.list_f)
+        for p in zips[:12]:
+            when = datetime.fromtimestamp(p.stat().st_mtime)
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", p.stem):
+                d = date.fromisoformat(p.stem)
+                label, kind = f"{d.month}월 {d.day}일 ({WEEKDAYS[d.weekday()]})", "자동"
+            else:
+                label, kind = f"{when.month}월 {when.day}일 {when:%H:%M}", p.stem.split("-")[0]
+            row = tk.Frame(self.list_f, bg=C["card"], highlightthickness=1, highlightbackground=C["border"])
+            row.pack(fill="x", pady=(0, 3))
+            self.app._button(row, "복원", lambda p=p: self.restore(p), font=(FONT, 9), pady=2).pack(
+                side="right", padx=4, pady=3)
+            tk.Label(row, text=f"{p.stat().st_size // 1024 + 1}KB", font=(FONT, 8), bg=C["card"],
+                     fg=C["faint"]).pack(side="right", padx=6)
+            tk.Label(row, text=kind, font=(FONT, 8, "bold"), bg=C["btn"], fg=C["muted"], padx=5).pack(
+                side="left", padx=(8, 0))
+            tk.Label(row, text=label, font=(FONT, 10), bg=C["card"], fg=C["text"], anchor="w").pack(
+                side="left", fill="x", expand=True, padx=8, pady=4)
+
+    def backup_now(self):
+        self.app._save_diary()
+        self.app.store.save()
+        p = make_backup(f"수동-{datetime.now():%Y%m%d-%H%M%S}")
+        self.status.config(text=f"백업했어요: {p.name}")
+        self.draw()
+
+    def restore(self, path):
+        if not messagebox.askyesno("복원", f"'{path.stem}' 백업으로 되돌릴까요?\n\n지금 데이터는 '복원전' 백업으로 남겨 둬요.",
+                                   parent=self):
+            return
+        a = self.app
+        a._save_diary()
+        a.store.save()
+        make_backup(f"복원전-{datetime.now():%Y%m%d-%H%M%S}")
+        restore_backup(path)
+        a.reload_data()
+        self.status.config(text=f"'{path.stem}' 백업으로 복원했어요")
+        self.draw()
+
+    def open_folder(self):
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        os.startfile(BACKUP_DIR)
 
 
 class CheckRow(tk.Frame):
