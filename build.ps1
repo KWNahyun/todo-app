@@ -1,4 +1,4 @@
-# Daily Todo: 테스트 → exe 빌드 → 설치 폴더 교체 → 다시 실행
+﻿# Daily Todo: 테스트 → exe 빌드 → 설치 폴더 교체 → 다시 실행
 # 사용: powershell -ExecutionPolicy Bypass -File build.ps1
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot

@@ -278,6 +278,49 @@ class MandalartTest(AppCase):
         w.destroy()
 
 
+# ---------------------------------------------------------------- 되돌리기
+class UndoTest(AppCase):
+    files = {"tasks.json": {iso(): [task("a", "A"), task("K", "K"), task("k1", "k1", parent="K"),
+                                    task("b", "B")]},
+             "events.json": {iso(): [{"id": "e", "time": "13:00", "title": "회의"}]}}
+
+    def titles(self):
+        return [t["title"] for t in self.tasks()]
+
+    def test_delete_without_dialog_then_undo(self):
+        a = self.app
+        a.delete(self.find("K"))  # 확인 창 없이 바로 (하위 포함)
+        self.assertEqual(self.titles(), ["A", "B"])
+        self.assertTrue(a.snack.winfo_ismapped() or a.snack.place_info())
+        a.undo()
+        self.assertEqual(self.titles(), ["A", "K", "k1", "B"])
+
+    def test_undo_check_and_event_delete(self):
+        a = self.app
+        a.set_done(self.find("A"), True)
+        a.delete_event(TODAY, a.events[iso()][0])
+        a.undo()
+        self.assertEqual(len(a.events[iso()]), 1)
+        a.undo()
+        self.assertFalse(self.find("A")["done"])
+
+    def test_undo_keeps_timer_time(self):
+        """되돌려도 그 사이에 잰 시간은 사라지지 않음."""
+        a = self.app
+        a.delete(self.find("B"))
+        t = self.find("A")
+        t["elapsed"] = 999.0
+        a.undo()
+        self.assertEqual(self.find("A")["elapsed"], 999.0)
+        self.assertIn("B", self.titles())
+
+    def test_ctrl_z_in_entry_is_ignored(self):
+        a = self.app
+        a.delete(self.find("B"))
+        self.assertIsNone(a.undo(E.__new__(type("Ev", (), {"widget": a.entry}))))
+        self.assertNotIn("B", self.titles())
+
+
 # ---------------------------------------------------------------- 백업
 class BackupTest(AppCase):
     files = {"tasks.json": {iso(): [task("a", "원래 할 일")]}, "journal.json": {iso(): "원래 일기"}}

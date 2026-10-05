@@ -1,5 +1,6 @@
 """Daily Todo — 날짜별 할 일 관리 + 할 일마다 개별 스톱워치."""
 import calendar
+import copy
 import ctypes
 import json
 import os
@@ -733,6 +734,12 @@ class App(tk.Tk):
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(win, width=e.width))
         self.bind_all("<MouseWheel>", self._on_wheel)
 
+        # 되돌리기: 목록 아래쪽에 잠깐 뜨는 알림 줄 + Ctrl+Z
+        self._undo, self._snack_job = [], None
+        self.snack = tk.Frame(body, bg=C["text"])
+        for seq in ("<Control-z>", "<Control-Z>"):
+            self.bind_all(seq, self.undo)
+
     def _build_diary(self):
         self.diary = tk.Frame(self, bg=C["bg"])
         self.diary.pack(side="bottom", fill="x", padx=16, pady=(4, 10))
@@ -1065,9 +1072,63 @@ class App(tk.Tk):
         self.render_events()
 
     def delete_event(self, day, ev):
+        self.snapshot()
         self.events[day.isoformat()].remove(ev)
         self.save_events()
         self.render_events()
+        self.show_snack(f"일정 '{ev['title']}' 삭제했어요")
+
+    # ---------- 되돌리기 ----------
+    def snapshot(self):
+        """바꾸기 직전 상태를 저장 (할 일 + 일정, 최근 30번)."""
+        self._undo.append((copy.deepcopy(self.store.data), copy.deepcopy(self.events)))
+        del self._undo[:-30]
+
+    def undo(self, e=None):
+        if e is not None:
+            w = e.widget
+            if isinstance(w, (tk.Entry, tk.Text)):  # 입력 중인 글자는 입력칸이 알아서 되돌림
+                return None
+        if not self._undo:
+            self.show_snack("되돌릴 작업이 없어요", undo=False)
+            return "break"
+        data, events = self._undo.pop()
+        # 측정된 시간은 지금 값을 유지 (되돌리기 때문에 기록한 시간이 사라지지 않게)
+        live = {t["id"]: t for t in self.store.all_tasks()}
+        mandala_changed = False
+        for ts in data.values():
+            for t in ts:
+                if t["id"] in live:
+                    for k in ("elapsed", "started_at", "pomos"):
+                        if k in live[t["id"]]:
+                            t[k] = live[t["id"]][k]
+                    if t.get("mandala") and t["done"] != live[t["id"]]["done"]:  # 만다라트 칸도 같이 되돌림
+                        s, a = t["mandala"]
+                        self.mandala["done"][s][a] = t["done"]
+                        mandala_changed = True
+        if mandala_changed:
+            self.save_mandala()
+        self.store.data, self.events = data, events
+        self.save_events()
+        self.refresh()
+        self.after_idle(self.render_top)
+        self.show_snack("되돌렸어요", undo=False)
+        return "break"
+
+    def show_snack(self, text, undo=True):
+        bar = self.snack
+        for w in bar.winfo_children():
+            w.destroy()
+        tk.Label(bar, text=text, font=(FONT, 10), bg=C["text"], fg=C["card"], padx=12, pady=6).pack(side="left")
+        if undo:
+            self._button(bar, "되돌리기 (Ctrl+Z)", self.undo, bg=C["text"], fg=C["sun_hi"], hover="#2c5139",
+                         activebackground="#2c5139", activeforeground=C["sun_hi"], font=(FONT, 9, "bold"),
+                         padx=10).pack(side="left", padx=(0, 4))
+        bar.place(relx=0.5, rely=1.0, y=-self._s(10), anchor="s")
+        bar.lift()
+        if self._snack_job:
+            self.after_cancel(self._snack_job)
+        self._snack_job = self.after(6000, bar.place_forget)
 
     def edit_event(self, day, ev):
         self._open_window("event_win", EventDialog, day, ev)
@@ -1414,6 +1475,7 @@ class App(tk.Tk):
         if "line" in d:
             d["line"].destroy()
             if d["idx"] is not None:
+                self.snapshot()
                 self._reorder(d["t"], d["sibs"], d["idx"])
         self.refresh()
 
@@ -1852,6 +1914,7 @@ class App(tk.Tk):
         if sep and not (ptitle and ctitle):
             self.bell()  # 'KAMP >' 처럼 한쪽이 비어 있으면 입력 대기
             return
+        self.snapshot()
         self.entry.delete(0, "end")
         if sep:
             # '상위 > 하위' : 상위가 없으면 만들고, 입력창엔 '상위 > '를 남겨 연속 입력
@@ -1880,6 +1943,7 @@ class App(tk.Tk):
         self.entry.icursor("end")
 
     def set_parent(self, t, parent):
+        self.snapshot()
         if parent:
             self._attach(t, parent)
         else:
@@ -1892,6 +1956,7 @@ class App(tk.Tk):
 
     def set_done(self, t, done):
         # 상위 할 일을 체크하면 하위 전체를 함께 완료/해제
+        self.snapshot()
         for x in [t] + children(t, self.store.tasks(self.day)):
             x["done"] = done
             if done:
@@ -1931,6 +1996,7 @@ class App(tk.Tk):
         self.refresh()
 
     def edit_task(self, t):
+        before = (copy.deepcopy(self.store.data), copy.deepcopy(self.events))
         self._dialog_open = True
         try:
             d = TaskDialog(self, t, total_time(t, self.store.tasks(self.day)))
@@ -1938,19 +2004,19 @@ class App(tk.Tk):
         finally:
             self._dialog_open = False
         if d.saved:
+            self._undo.append(before)
             self.refresh()
 
     def delete(self, t):
+        # 확인 창 대신 바로 지우고, 아래 알림 줄의 '되돌리기'(또는 Ctrl+Z)로 복구
         tasks = self.store.tasks(self.day)
         kids = children(t, tasks)
-        msg = f"'{t['title']}'을(를) 삭제할까요?"
-        if kids:
-            msg += f"\n하위 할 일 {len(kids)}개도 함께 삭제됩니다."
-        if not self._dialog(messagebox.askyesno, "삭제", msg):
-            return
+        self.snapshot()
         for x in [t] + kids:
             tasks.remove(x)
         self.refresh()
+        extra = f" (하위 {len(kids)}개 포함)" if kids else ""
+        self.show_snack(f"'{t['title']}' 삭제했어요{extra}")
 
     def carry_over(self):
         key = self.day.isoformat()
@@ -1961,6 +2027,7 @@ class App(tk.Tk):
         prev_key = max(prev_days)
         prev, cur = self.store.data[prev_key], self.store.tasks(self.day)
         parents = {t.get("parent") for t in prev}
+        self.snapshot()
         before = len(cur)
         # 미완료인 '실제 할 일'(하위가 없는 것)만 가져오고, 상위는 필요할 때 함께 만들어짐
         for t in prev:
@@ -1968,9 +2035,11 @@ class App(tk.Tk):
                 stop(t)
                 self.store.copy_task(t, prev, cur)
         if len(cur) == before:
+            self._undo.pop()
             self._dialog(messagebox.showinfo, "가져오기", f"{prev_key}에 가져올 미완료 항목이 없습니다.")
             return
         self.refresh()
+        self.show_snack(f"{prev_key[5:].replace('-', '/')}의 미완료 {len(cur) - before}개를 가져왔어요")
 
     def open_stats(self):
         if self.stats_win and self.stats_win.winfo_exists():
