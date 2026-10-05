@@ -1,0 +1,6 @@
+# 빌드 결과물 (build.ps1 로 다시 만들 수 있음)
+build/
+dist/
+*.spec
+__pycache__/
+icon_preview.png
