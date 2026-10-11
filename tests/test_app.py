@@ -506,6 +506,77 @@ class BucketTest(AppCase):
         self.assertEqual(a.records_win.current, "diary")
 
 
+class CollectionsTest(AppCase):
+    """가고 싶은 곳 · 콘텐츠 리뷰 · 취미 기록 (같은 ListView, 다른 설정)."""
+
+    def open(self, key):
+        a = self.app
+        a.open_records()
+        a.records_win.show(key)
+        a.update()
+        return a.records_win.views[key]
+
+    def add(self, v, text):
+        v.entry.insert(0, text)
+        v.add()
+        return v.item(v.sel_id)
+
+    def test_all_collections_in_sidebar(self):
+        self.open("bucket")
+        self.assertEqual(list(self.app.records_win.side_btns),
+                         ["diary", "bucket", "places", "reviews", "hobby"])
+
+    def test_places_done_rating_where(self):
+        v = self.open("places")
+        it = self.add(v, "#카페 블루보틀 성수")
+        v.field_entries["where"].insert(0, "서울 성동구")
+        v._commit_fields()
+        self.assertEqual(it["where"], "서울 성동구")
+        v.set_done(it, True)
+        self.assertTrue(any("다녀왔어요" in n for n in self.notes))
+        v.set_field(it, "rating", 4)
+        self.assertIn("서울 성동구", v._subtitle(it))
+        self.assertEqual(v.progress_lbl.cget("text"), "1개 중 1개 다녀옴")
+
+    def test_reviews_stages_kind_filter(self):
+        v = self.open("reviews")
+        v.set_choice("영화")
+        movie = self.add(v, "듄 파트2")
+        self.assertEqual(movie["kind"], "영화")  # 거르던 종류로 기본값
+        v.set_choice(None)
+        book = self.add(v, "#추천 데미안")
+        self.assertEqual(book["kind"], "기타")
+        v.set_field(book, "kind", "책")
+        v.set_stage(movie, 1)  # 보는 중
+        self.assertIsNone(movie["done_on"])
+        v.set_stage(book, 2)  # 다 봄 → 날짜 기록
+        self.assertEqual(book["done_on"], iso())
+        self.assertEqual([x["title"] for x in v.visible()], ["듄 파트2", "데미안"])  # 보는 중 → 다 봄
+        v.set_filter("s2")
+        self.assertEqual([x["title"] for x in v.visible()], ["데미안"])
+        v.set_filter("all")
+        v.set_choice("책")
+        self.assertEqual([x["title"] for x in v.visible()], ["데미안"])
+        v.set_field(book, "rating", 5)
+        v.set_field(book, "oneline", "다시 읽어도 좋다")
+        self.assertEqual(v._subtitle(book), "책  ·  ★★★★★  ·  “다시 읽어도 좋다”")
+        v._stage_pill(v.list_inner, book, C_BG).event_generate("<Button-1>")  # 다 봄 → 보고 싶음 순환
+
+    def test_hobby_log_by_date(self):
+        v = self.open("hobby")
+        a = self.add(v, "#그림 수채화 연습")
+        b = self.add(v, "#기타 코드 연습")
+        v.set_date(a, "date", TODAY - timedelta(days=3))
+        self.assertEqual([x["title"] for x in v.visible()], ["코드 연습", "수채화 연습"])  # 최근 날짜가 위
+        self.assertEqual(v.progress_lbl.cget("text").split(" · ")[0], "기록 2개")
+        v.set_field(b, "file", r"C:\없는\사진.jpg")
+        v.open_file(b["file"])  # 없는 파일 → 안내만
+        self.assertIn("찾을 수 없어요", v.status.cget("text"))
+
+
+C_BG = "#f3e9d6"
+
+
 # ---------------------------------------------------------------- 백업
 class BackupTest(AppCase):
     files = {"tasks.json": {iso(): [task("a", "원래 할 일")]}, "journal.json": {iso(): "원래 일기"}}
