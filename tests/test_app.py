@@ -25,7 +25,7 @@ os.environ["DAILY_TODO_NO_HOTKEYS"] = "1"
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 MODULES = ["config", "core", "storage", "winapi", "widgets", "dialogs", "schedule", "mandala", "stats",
-           "records", "ui_window", "ui_journal", "ui_top", "ui_tasks", "ui_timers", "app"]
+           "lists", "records", "ui_window", "ui_journal", "ui_top", "ui_tasks", "ui_timers", "app"]
 mods = {m: importlib.import_module(f"dailytodo.{m}") for m in MODULES}
 dialogs, winapi = mods["dialogs"], mods["winapi"]
 # 테스트에서 읽기 편하게 모든 공개 이름을 todo.이름 으로 (바꿔치기는 실제 모듈에서)
@@ -432,6 +432,78 @@ class DiaryTest(AppCase):
         v._changed(None)  # 0.7초 뒤 저장 예약만 된 상태
         a.records_win.close()
         self.assertEqual(a.journal[iso()], "저장 버튼 없이 닫기")
+
+
+# ---------------------------------------------------------------- 버킷리스트 (목록형 모음)
+class BucketTest(AppCase):
+    files = {"collections.json": {"bucket": [
+        {"id": "a", "title": "스카이다이빙", "tags": ["경험"], "done": True, "done_on": iso(-30), "note": "",
+         "created": iso(-90)},
+        {"id": "b", "title": "오로라 보기", "tags": ["여행"], "done": False, "done_on": None, "note": "",
+         "created": iso(-10)}]}}
+
+    def open(self):
+        a = self.app
+        a.open_records()
+        a.records_win.show("bucket")
+        a.update()
+        return a.records_win.views["bucket"]
+
+    def titles(self, v):
+        return [x["title"] for x in v.visible()]
+
+    def test_split_tags(self):
+        self.assertEqual(todo.split_tags("#여행 오로라 보기 #겨울"), ("오로라 보기", ["여행", "겨울"]))
+        self.assertEqual(todo.split_tags("마라톤 완주"), ("마라톤 완주", []))
+
+    def test_add_with_tags_and_filters(self):
+        v = self.open()
+        v.entry.insert(0, "#여행 산티아고 순례길")
+        v.add()
+        self.assertEqual(self.titles(v), ["오로라 보기", "산티아고 순례길", "스카이다이빙"])  # 남은 것 먼저
+        self.assertEqual(v.sel_id, self.app.collections["bucket"][-1]["id"])  # 새 항목이 바로 선택
+        v.set_tag("여행")
+        self.assertEqual(self.titles(v), ["오로라 보기", "산티아고 순례길"])
+        v.set_tag(None)
+        v.set_filter("done")
+        self.assertEqual(self.titles(v), ["스카이다이빙"])
+        v.set_filter("all")
+        v.query.set("오로라")
+        self.assertEqual(self.titles(v), ["오로라 보기"])
+        self.assertEqual(v.progress_lbl.cget("text"), "3개 중 1개 이룸")
+
+    def test_done_note_saved_and_celebrated(self):
+        v = self.open()
+        v.select("b")
+        it = v.item("b")
+        v.set_done(it, True)
+        self.assertEqual(it["done_on"], iso())
+        self.assertTrue(any("이뤘어요" in n for n in self.notes))
+        v.note.insert("1.0", "드디어!")
+        v.note.edit_modified(True)
+        v._note_changed(None)
+        self.app.records_win.close()  # 저장 예약 상태로 닫아도 저장
+        saved = json.loads((DATA_DIR / "collections.json").read_text(encoding="utf-8"))
+        self.assertEqual(next(x for x in saved["bucket"] if x["id"] == "b")["note"], "드디어!")
+
+    def test_to_today_and_goal(self):
+        v = self.open()
+        v.select("b")
+        v.to_today(v.item("b"))
+        v.to_today(v.item("b"))  # 두 번 보내도 하나
+        group = self.find("버킷리스트")
+        self.assertEqual([t["title"] for t in todo.children(group, self.tasks())], ["오로라 보기"])
+        v.to_goal(v.item("b"))
+        self.assertIn("오로라 보기", [g["title"] for g in self.app.goals])
+
+    def test_feature_off_hides_collection(self):
+        a = self.app
+        self.open()
+        self.assertIn("bucket", a.records_win.side_btns)
+        a.set_feature("bucket", False)
+        a.update()
+        self.assertNotIn("bucket", a.records_win.side_btns)
+        self.assertEqual(a.records_win.current, "diary")
 
 
 # ---------------------------------------------------------------- 백업

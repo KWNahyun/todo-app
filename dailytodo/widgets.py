@@ -2,9 +2,25 @@
 import calendar
 import tkinter as tk
 from datetime import date
+from tkinter import ttk
 
 from .config import C, DAY_HEADS, FONT, MOODS
 from .winapi import work_area
+
+
+def scroll_area(parent, bg):
+    """세로 스크롤 영역. (바깥 frame, canvas, 안쪽 frame) 을 돌려줌."""
+    wrap = tk.Frame(parent, bg=bg)
+    canvas = tk.Canvas(wrap, bg=bg, highlightthickness=0)
+    sb = ttk.Scrollbar(wrap, orient="vertical", command=canvas.yview, style="Forest.Vertical.TScrollbar")
+    canvas.configure(yscrollcommand=sb.set)
+    sb.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    inner = tk.Frame(canvas, bg=bg)
+    win = canvas.create_window((0, 0), window=inner, anchor="nw")
+    inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
+    return wrap, canvas, inner
 
 
 def draw_face(c, x, y, size, level, color, filled, ink):

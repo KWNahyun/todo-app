@@ -7,8 +7,8 @@ from datetime import date, timedelta
 from tkinter import messagebox
 
 from .config import (
-    C, DATA_FILE, DEADLINE_FILE, EVENT_FILE, GOAL_FILE, HABIT_FILE, JOURNAL_FILE, MANDALA_FILE, MOOD_FILE,
-    SETTINGS_FILE,
+    C, COLLECTIONS_FILE, DATA_FILE, DEADLINE_FILE, EVENT_FILE, GOAL_FILE, HABIT_FILE, JOURNAL_FILE,
+    MANDALA_FILE, MOOD_FILE, SETTINGS_FILE,
 )
 from .core import fmt, normalize_mandala, stop
 from .storage import Store, daily_backup, load_json, save_json
@@ -102,6 +102,11 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
         self.goals = load_json(GOAL_FILE) or []
         self.events = load_json(EVENT_FILE)
         self.mandala = normalize_mandala(load_json(MANDALA_FILE))
+        self.collections = load_json(COLLECTIONS_FILE)  # 기록장의 목록형 모음 (버킷리스트 등)
+
+    def save_collections(self, source=None):
+        save_json(COLLECTIONS_FILE, self.collections)
+        self._redraw_records(source)
 
     def has(self, feature):
         """기능이 켜져 있는지 (기본은 모두 켜짐)."""
@@ -134,6 +139,9 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
             win = getattr(self, attr, None)
             if not self.has(feature) and win and win.winfo_exists():
                 win.destroy()
+        records = getattr(self, "records_win", None)
+        if records and records.winfo_exists():
+            records.build_sidebar()  # 버킷리스트 등 모음을 켜고 끄면 기록장 왼쪽 목록도 맞춤
         self.refresh()
 
     def reload_data(self):

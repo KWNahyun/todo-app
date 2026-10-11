@@ -1,16 +1,18 @@
-"""기록장: 위젯과 따로 여는 큰 창. 왼쪽은 모음 목록(지금은 다이어리), 오른쪽은 고른 모음의 화면.
+"""기록장: 위젯과 따로 여는 큰 창. 왼쪽은 모음 목록, 오른쪽은 고른 모음의 화면.
 
-모음을 더할 때는 RecordsWindow.COLLECTIONS 에 (키, 이름, 화면 클래스)를 넣고,
-화면 클래스는 tk.Frame 을 상속해 refresh(source) / save_now() 를 구현하면 됨.
+- 다이어리: 이 파일의 DiaryView
+- 목록형 모음(버킷리스트 등): lists.py 의 ListView + SCHEMAS (문구만 더하면 새 모음)
+화면은 tk.Frame 을 상속해 refresh(source, force) / save_now() 를 구현하면 됨.
 """
 import tkinter as tk
 from datetime import date, timedelta
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog
 
 from .config import C, FONT, MOODS, WEEKDAYS
 from .core import elapsed, fmt_hm
-from .widgets import CalendarPopup, MoodPicker, draw_face
+from .lists import SCHEMAS, ListView
+from .widgets import CalendarPopup, MoodPicker, draw_face, scroll_area
 
 # 빈 페이지에 하나씩 보여 주는 질문 (날짜마다 바뀜)
 PROMPTS = [
@@ -22,21 +24,6 @@ PROMPTS = [
 
 def day_label(d):
     return f"{d.month}월 {d.day}일 ({WEEKDAYS[d.weekday()]})"
-
-
-def scroll_area(parent, bg):
-    """세로 스크롤 영역. (canvas, 안쪽 frame) 을 돌려줌."""
-    wrap = tk.Frame(parent, bg=bg)
-    canvas = tk.Canvas(wrap, bg=bg, highlightthickness=0)
-    sb = ttk.Scrollbar(wrap, orient="vertical", command=canvas.yview, style="Forest.Vertical.TScrollbar")
-    canvas.configure(yscrollcommand=sb.set)
-    sb.pack(side="right", fill="y")
-    canvas.pack(side="left", fill="both", expand=True)
-    inner = tk.Frame(canvas, bg=bg)
-    win = canvas.create_window((0, 0), window=inner, anchor="nw")
-    inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
-    return wrap, canvas, inner
 
 
 class DiaryView(tk.Frame):
@@ -298,31 +285,26 @@ class DiaryView(tk.Frame):
 
 
 class RecordsWindow(tk.Toplevel):
-    """기록장 창. 모음이 늘어나면 COLLECTIONS 에 추가."""
+    """기록장 창. 모음이 늘어나면 COLLECTIONS 에 (키, 이름, 화면 만드는 함수, 기능 키) 를 추가."""
 
-    COLLECTIONS = [("diary", "다이어리", DiaryView)]
+    COLLECTIONS = [("diary", "다이어리", DiaryView, None)] + [
+        (key, sc["label"], lambda parent, app, k=key: ListView(parent, app, k), key) for key, sc in SCHEMAS.items()
+    ]
 
     def __init__(self, app):
         super().__init__(app)
         self.app, s = app, app._s
         self.title("기록장")
         self.configure(bg=C["bg"])
-        self.minsize(s(720), s(520))
-        side = tk.Frame(self, bg=C["bar"], width=s(150))
-        side.pack(side="left", fill="y")
-        side.pack_propagate(False)
-        tk.Label(side, text="기록장", font=(FONT, 13, "bold"), bg=C["bar"], fg=C["text"], anchor="w",
-                 padx=14, pady=14).pack(fill="x")
-        self.side_btns = {}
-        for key, label, _ in self.COLLECTIONS:
-            b = tk.Label(side, text=label, font=(FONT, 10), anchor="w", padx=14, pady=6, cursor="hand2")
-            b.pack(fill="x")
-            b.bind("<Button-1>", lambda e, k=key: self.show(k))
-            self.side_btns[key] = b
+        self.minsize(s(760), s(520))
+        self.side = tk.Frame(self, bg=C["bar"], width=s(150))
+        self.side.pack(side="left", fill="y")
+        self.side.pack_propagate(False)
         self.body = tk.Frame(self, bg=C["bg"])
         self.body.pack(side="left", fill="both", expand=True)
         self.views = {}
         self.current = None
+        self.build_sidebar()
         self.show("diary")
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<MouseWheel>", self._wheel)
@@ -330,12 +312,31 @@ class RecordsWindow(tk.Toplevel):
         self.update_idletasks()
         app._window_chrome(self)
 
+    def build_sidebar(self):
+        """켜진 모음만 왼쪽에 (기능 켜고 끄기를 바꾸면 다시 부름)."""
+        for w in self.side.winfo_children():
+            w.destroy()
+        tk.Label(self.side, text="기록장", font=(FONT, 13, "bold"), bg=C["bar"], fg=C["text"], anchor="w",
+                 padx=14, pady=14).pack(fill="x")
+        self.side_btns = {}
+        for key, label, _, feature in self.COLLECTIONS:
+            if feature and not self.app.has(feature):
+                continue
+            b = tk.Label(self.side, text=label, font=(FONT, 10), anchor="w", padx=14, pady=6, cursor="hand2")
+            b.pack(fill="x")
+            b.bind("<Button-1>", lambda e, k=key: self.show(k))
+            self.side_btns[key] = b
+        if self.current and self.current not in self.side_btns:
+            self.show("diary")
+        elif self.current:
+            self.show(self.current)
+
     def show(self, key):
         for v in self.views.values():
             v.pack_forget()
         if key not in self.views:
-            cls = next(c for k, _, c in self.COLLECTIONS if k == key)
-            self.views[key] = cls(self.body, self.app)
+            make = next(c for k, _, c, _ in self.COLLECTIONS if k == key)
+            self.views[key] = make(self.body, self.app)
         self.views[key].pack(fill="both", expand=True)
         self.current = key
         for k, b in self.side_btns.items():

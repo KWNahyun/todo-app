@@ -29,6 +29,8 @@ EVENT_FILE = DATA_FILE.with_name("events.json")    # {"YYYY-MM-DD": [{id, time "
 
 
 MANDALA_FILE = DATA_FILE.with_name("mandalart.json")  # {center, subs[8], actions[8][8], done[8][8]}
+# 기록장의 목록형 모음: {"bucket": [{id, title, tags, done, done_on, note, created}], ...}
+COLLECTIONS_FILE = DATA_FILE.with_name("collections.json")
 
 
 BACKUP_DIR = DATA_FILE.parent / "backups"  # 하루 한 번 자동: YYYY-MM-DD.zip (최근 14개 보관)
@@ -65,6 +67,7 @@ FEATURES = [
     ("stats", "주간 통계", "날짜별 시간 그래프, 습관 표"),
     ("pomodoro", "뽀모도로", "25분 집중 · 5분 휴식"),
     ("mandala", "만다라트", "9x9 목표 계획표"),
+    ("bucket", "버킷리스트", "기록장의 '언젠가 해 보고 싶은 것' 목록"),
 ]
 
 
