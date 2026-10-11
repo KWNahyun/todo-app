@@ -5,26 +5,32 @@
 - 전역 단축키는 끔 (실행 중인 앱과 겹치지 않게)
 - 테스트 중 창이 잠깐 깜빡일 수 있음
 """
-import importlib.util
+import importlib
 import json
 import os
 import shutil
 import sys
 import tempfile
 import time
+import types
 import unittest
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+# 패키지를 불러오기 전에 데이터 경로를 임시 폴더로 (config 가 불러올 때 읽음)
 DATA_DIR = Path(tempfile.mkdtemp(prefix="dailytodo-test-"))
 os.environ["DAILY_TODO_DATA"] = str(DATA_DIR / "tasks.json")
 os.environ["DAILY_TODO_NO_HOTKEYS"] = "1"
 
 ROOT = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location("todo", ROOT / "todo.pyw")
-todo = importlib.util.module_from_spec(_spec)
-sys.modules["todo"] = todo
-_spec.loader.exec_module(todo)
+sys.path.insert(0, str(ROOT))
+MODULES = ["config", "core", "storage", "winapi", "widgets", "dialogs", "schedule", "mandala", "stats",
+           "ui_window", "ui_journal", "ui_top", "ui_tasks", "ui_timers", "app"]
+mods = {m: importlib.import_module(f"dailytodo.{m}") for m in MODULES}
+dialogs, winapi = mods["dialogs"], mods["winapi"]
+# 테스트에서 읽기 편하게 모든 공개 이름을 todo.이름 으로 (바꿔치기는 실제 모듈에서)
+todo = types.SimpleNamespace(**{k: v for mod in mods.values() for k, v in vars(mod).items()
+                                if not k.startswith("__")})
 
 TODAY = date.today()
 
@@ -239,10 +245,10 @@ class AwayTest(AppCase):
                 super().__init__(app)
                 self.choice = test.answer
                 self.after(20, self.destroy)
-        self._orig, todo.AwayDialog = todo.AwayDialog, FakeAway
+        self._orig, dialogs.AwayDialog = dialogs.AwayDialog, FakeAway
 
     def tearDown(self):
-        todo.AwayDialog = self._orig
+        dialogs.AwayDialog = self._orig
         super().tearDown()
 
     def test_idle_cut_and_continue(self):
@@ -250,14 +256,14 @@ class AwayTest(AppCase):
         self.type("모델링")
         t = self.find("모델링")
         t["started_at"] = time.time() - 1800
-        orig = todo.idle_seconds
+        orig = winapi.idle_seconds
         try:
-            todo.idle_seconds = lambda: 1200
+            winapi.idle_seconds = lambda: 1200
             a._guard_timers()
-            todo.idle_seconds = lambda: 1
+            winapi.idle_seconds = lambda: 1
             a._guard_timers()
         finally:
-            todo.idle_seconds = orig
+            winapi.idle_seconds = orig
         self.assertAlmostEqual(t["elapsed"], 600, delta=3)  # 자리 비운 20분은 빠짐
         self.assertAlmostEqual(t["started_at"], time.time(), delta=3)
 
