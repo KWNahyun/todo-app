@@ -321,6 +321,45 @@ class UndoTest(AppCase):
         self.assertNotIn("B", self.titles())
 
 
+# ---------------------------------------------------------------- 기능 켜고 끄기 · 사용법
+class FeatureTest(AppCase):
+    def menu_labels(self):
+        m = self.app._build_menu()
+        return [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
+
+    def test_turn_off_hides_everywhere(self):
+        a = self.app
+        self.assertIn("만다라트", self.menu_labels())
+        for f in ("mandala", "events", "mood", "habits", "stats", "review", "pomodoro"):
+            a.set_feature(f, False)
+        a.update()
+        labels = self.menu_labels()
+        for gone in ("만다라트", "일정표 (주 · 2주 · 한 달)", "주간 통계", "오늘 정리하기", "뽀모도로 모드"):
+            self.assertNotIn(gone, labels)
+        self.assertFalse(a.mood_picker.winfo_ismapped())
+        self.assertFalse(a.habit_bar.winfo_ismapped())
+        self.assertFalse(a.stats_btn.winfo_ismapped())
+        self.type("13:30 회의")  # 일정 기능이 꺼지면 그냥 할 일
+        self.assertEqual(self.find("13:30 회의")["title"], "13:30 회의")
+        self.assertFalse(a.events)
+
+    def test_turn_back_on_keeps_records(self):
+        a = self.app
+        a.set_mood(iso(), 4)
+        a.set_feature("mood", False)
+        a.set_feature("mood", True)
+        a.update()
+        self.assertEqual(a.moods[iso()], 4)
+        self.assertTrue(a.mood_picker.winfo_ismapped())
+
+    def test_help_and_feature_dialogs_open(self):
+        for cls in (todo.HelpDialog, todo.FeatureDialog):
+            d = cls(self.app)
+            self.app.update()
+            self.assertTrue(d.winfo_exists())
+            d.destroy()
+
+
 # ---------------------------------------------------------------- 백업
 class BackupTest(AppCase):
     files = {"tasks.json": {iso(): [task("a", "원래 할 일")]}, "journal.json": {iso(): "원래 일기"}}

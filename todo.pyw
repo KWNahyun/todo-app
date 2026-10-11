@@ -43,6 +43,18 @@ DEFAULT_HOTKEYS = {"show": {"mods": 3, "vk": 0x54, "label": "Ctrl+Alt+T"},
                    "timer": {"mods": 3, "vk": 0x53, "label": "Ctrl+Alt+S"},
                    "review": {"mods": 3, "vk": 0x52, "label": "Ctrl+Alt+R"}}
 SECTIONS = [("events", "일정 (오늘 타임라인)"), ("deadlines", "마감 (디데이)"), ("goals", "큰 목표")]
+# 켜고 끌 수 있는 기능 (끄면 메뉴·화면에서 사라지고, 기록은 그대로 남음)
+FEATURES = [
+    ("events", "일정 · 일정표", "'13:30 회의' 입력, 오늘 타임라인, 일정 알림, 일정표 창"),
+    ("deadlines", "마감 (디데이)", "디데이 줄, 묶음 옆 D-배지, 달력의 빨간 점"),
+    ("goals", "큰 목표", "누적 시간 목표, 목표에 연결"),
+    ("habits", "습관 트래커", "일기 위 습관 칩, 연속 일수"),
+    ("mood", "기분 기록", "일기 옆 표정 5단계"),
+    ("review", "오늘 정리하기", "저녁 회고 카드와 정리 알림"),
+    ("stats", "주간 통계", "날짜별 시간 그래프, 습관 표"),
+    ("pomodoro", "뽀모도로", "25분 집중 · 5분 휴식"),
+    ("mandala", "만다라트", "9x9 목표 계획표"),
+]
 POMO_DEFAULTS = {"pomo_focus": 25, "pomo_break": 5, "pomo_long": 15, "pomo_every": 4}
 
 FONT = "Malgun Gothic"
@@ -417,6 +429,7 @@ class App(tk.Tk):
         self.render()
         self._load_diary()
         self.apply_mode(self.settings.get("widget", False))
+        self.apply_features()
         if crashed:
             self.after(600, lambda: self._ask_away(heartbeat, "앱이 꺼져 있던 동안"))
         self._tick()
@@ -438,6 +451,39 @@ class App(tk.Tk):
         self.goals = load_json(GOAL_FILE) or []
         self.events = load_json(EVENT_FILE)
         self.mandala = normalize_mandala(load_json(MANDALA_FILE))
+
+    def has(self, feature):
+        """기능이 켜져 있는지 (기본은 모두 켜짐)."""
+        return self.settings.get("features", {}).get(feature, True)
+
+    def set_feature(self, feature, on):
+        self.settings.setdefault("features", {})[feature] = on
+        self._save_settings()
+        self.apply_features()
+
+    def apply_features(self):
+        """켜고 끈 기능에 맞춰 화면을 다시 구성."""
+        for b in (self.stats_btn, self.review_btn):
+            b.pack_forget()
+        if self.has("stats"):
+            self.stats_btn.pack(side="right", padx=(6, 0))
+        if self.has("review"):
+            self.review_btn.pack(side="right", padx=(6, 0))
+        if self.has("mood"):
+            self.mood_picker.pack(side="right")
+        else:
+            self.mood_picker.pack_forget()
+        self._show_diary(self.settings.get("diary_open", True))
+        if not self.has("pomodoro") and self.pomo_var.get():
+            self.pomo_var.set(False)
+            self._set_pomo()
+        # 꺼진 기능의 창은 닫음
+        for feature, attr in (("mandala", "mandala_win"), ("stats", "stats_win"),
+                              ("events", "schedule_win")):
+            win = getattr(self, attr, None)
+            if not self.has(feature) and win and win.winfo_exists():
+                win.destroy()
+        self.refresh()
 
     def reload_data(self):
         self._diary_day = None  # 지금 일기 칸 내용으로 복원된 일기를 덮어쓰지 않게
@@ -522,7 +568,7 @@ class App(tk.Tk):
         if widget:
             self.topbar.pack(fill="x", before=self.header)
             self.mode_btn.pack_forget()
-            self.grip.pack(side="right", padx=(6, 0), before=self.stats_btn)
+            self.grip.pack(side="right", padx=(6, 0), before=self.foot_btns)
             self.attributes("-alpha", 0.98)  # 밝은 바탕은 뒤가 비치면 글씨가 흐려져서 거의 불투명
             geom = self._fit(self.settings.get("geom_widget"), self.WIDGET_MIN, self._tall_widget_geom())
         else:
@@ -650,30 +696,8 @@ class App(tk.Tk):
         self.menu_style = dict(bg=C["card"], fg=C["text"], activebackground=C["btn_hi"],
                                activeforeground=C["text"], selectcolor=C["moss"], font=(FONT, 10), bd=0)
         self.pomo_var = tk.BooleanVar(value=self.settings.get("pomo_on", False))
-        self.menu = tk.Menu(self, tearoff=0, **self.menu_style)
-        self.menu.add_command(label="오늘 정리하기", command=self.open_review)
-        self.menu.add_command(label="주간 통계", command=self.open_stats)
-        self.menu.add_separator()
-        self.menu.add_command(label="일정표 (주 · 2주 · 한 달)", command=self.open_schedule)
-        self.menu.add_command(label="만다라트", command=self.open_mandala)
-        self.menu.add_command(label="큰 목표", command=self.open_goals)
-        self.menu.add_command(label="마감 일정 (디데이)", command=self.open_deadlines)
-        self.menu.add_command(label="습관 관리", command=self.open_habits)
-        self.menu.add_command(label="이전 미완료 가져오기", command=self.carry_over)
-        self.menu.add_separator()
-        self.menu.add_checkbutton(label="뽀모도로 모드", variable=self.pomo_var, command=self._set_pomo)
-        self.menu.add_checkbutton(label="타이머는 한 번에 하나만", variable=self.single_var,
-                                  command=self._set_single)
-        self.section_vars = {}
-        top_menu = tk.Menu(self.menu, tearoff=0, **self.menu_style)
-        for name, label in SECTIONS:
-            self.section_vars[name] = tk.BooleanVar(value=self.section_cfg(name)["show"])
-            top_menu.add_checkbutton(label=label, variable=self.section_vars[name],
-                                     command=lambda n=name: self.set_section_shown(n, self.section_vars[n].get()))
-        self.menu.add_cascade(label="상단에 표시", menu=top_menu)
-        self.menu.add_separator()
-        self.menu.add_command(label="설정 (단축키 · 뽀모도로 · 알림)", command=self.open_settings)
-        self.menu.add_command(label="백업 · 복원", command=self.open_backups)
+        # '상단에 표시'(설정 창에서 바꿈)와 연결된 값
+        self.section_vars = {name: tk.BooleanVar(value=self.section_cfg(name)["show"]) for name, _ in SECTIONS}
 
         # 상단: [일정][마감][목표] 버튼 줄 + 펼친 항목 (설정에서 항목별로 숨길 수 있음)
         self.top_box = tk.Frame(self, bg=C["bg"])
@@ -713,9 +737,11 @@ class App(tk.Tk):
         self.grip.bind("<Button-1>", self._resize_start)
         self.grip.bind("<B1-Motion>", self._resize_move)
         small = dict(bg=C["btn"], font=(FONT, 9), pady=3)
-        self.stats_btn = self._button(footer, "통계", self.open_stats, **small)
-        self.stats_btn.pack(side="right", padx=(0, 12))
-        self._button(footer, "정리하기", self.open_review, **small).pack(side="right", padx=(0, 6))
+        # 오른쪽 버튼 묶음 (기능을 끄면 그 버튼만 빠짐)
+        self.foot_btns = tk.Frame(footer, bg=C["bar"])
+        self.foot_btns.pack(side="right", padx=(0, 12))
+        self.stats_btn = self._button(self.foot_btns, "통계", self.open_stats, **small)
+        self.review_btn = self._button(self.foot_btns, "정리하기", self.open_review, **small)
         self.mode_btn = self._button(footer, "❦ 위젯", lambda: self.apply_mode(True), **small)
 
         self._build_diary()
@@ -761,12 +787,12 @@ class App(tk.Tk):
 
     def _show_diary(self, show):
         self.settings["diary_open"] = show
-        if show:
-            self.habit_bar.pack(fill="x", pady=(6, 0))
+        self.habit_bar.pack_forget()
+        self.diary_text.pack_forget()
+        if show:  # 습관 칩(켜져 있을 때) → 일기 순서로
+            if self.has("habits"):
+                self.habit_bar.pack(fill="x", pady=(6, 0))
             self.diary_text.pack(fill="x", pady=(6, 0))
-        else:
-            self.habit_bar.pack_forget()
-            self.diary_text.pack_forget()
         self._update_diary_head()
 
     def set_journal(self, iso, text):
@@ -869,9 +895,43 @@ class App(tk.Tk):
             return  # 일기 입력칸·다른 창은 각자 스크롤
         self.canvas.yview_scroll(int(-e.delta / 120), "units")
 
+    def _build_menu(self):
+        """⋯ 메뉴: 켜진 기능만, 성격별로 묶어서."""
+        m = tk.Menu(self, tearoff=0, **self.menu_style)
+
+        def group(items):
+            items = [(label, cmd) for feature, label, cmd in items if feature is None or self.has(feature)]
+            if items and m.index("end") is not None:
+                m.add_separator()
+            for label, cmd in items:
+                m.add_command(label=label, command=cmd)
+
+        group([("review", "오늘 정리하기", self.open_review), ("stats", "주간 통계", self.open_stats),
+               ("events", "일정표 (주 · 2주 · 한 달)", self.open_schedule)])
+        group([("goals", "큰 목표", self.open_goals), ("deadlines", "마감 일정 (디데이)", self.open_deadlines),
+               ("habits", "습관 관리", self.open_habits), ("mandala", "만다라트", self.open_mandala), (None, "이전 미완료 가져오기", self.carry_over)])
+        m.add_separator()
+        if self.has("pomodoro"):
+            m.add_checkbutton(label="뽀모도로 모드", variable=self.pomo_var, command=self._set_pomo)
+        m.add_checkbutton(label="타이머는 한 번에 하나만", variable=self.single_var, command=self._set_single)
+        m.add_separator()
+        for label, cmd in (("설정 (단축키 · 알림 · 표시)", self.open_settings),
+                           ("기능 켜고 끄기", self.open_features),
+                           ("백업 · 복원", self.open_backups),
+                           ("사용법 · 단축키", self.open_help)):
+            m.add_command(label=label, command=cmd)
+        return m
+
     def _show_menu(self):
         b = self.menu_btn
+        self.menu = self._build_menu()
         self.menu.tk_popup(b.winfo_rootx(), b.winfo_rooty() + b.winfo_height())
+
+    def open_features(self):
+        self._open_window("feature_win", FeatureDialog)
+
+    def open_help(self):
+        self._open_window("help_win", HelpDialog)
 
     def _set_single(self):
         self.settings["single_timer"] = self.single_var.get()
@@ -978,7 +1038,7 @@ class App(tk.Tk):
             for w in box.winfo_children():
                 w.destroy()
             box.pack_forget()
-        cfg = {n: self.section_cfg(n) for n, _ in SECTIONS}
+        cfg = {n: dict(self.section_cfg(n), show=self.section_cfg(n)["show"] and self.has(n)) for n, _ in SECTIONS}
         now = datetime.now()
         is_today = self.day == self.today
         evs = sorted(self.events.get(self.day.isoformat(), []), key=lambda e: e["time"])
@@ -1002,7 +1062,8 @@ class App(tk.Tk):
             else:
                 self._add_link(self.chip_bar, "+ 목표", self.open_goals)
         # 오른쪽 끝: 주·2주·한 달 일정을 한 번에 보는 일정표
-        self._add_link(self.chip_bar, "일정표 ›", self.open_schedule, side="right")
+        if self.has("events"):
+            self._add_link(self.chip_bar, "일정표 ›", self.open_schedule, side="right")
         self.chip_bar.pack(fill="x", pady=(0, 6))
 
         if cfg["events"]["show"] and cfg["events"]["open"] and evs:
@@ -1139,7 +1200,7 @@ class App(tk.Tk):
         if now.minute != self._event_minute:
             self._event_minute = now.minute
             self.render_events()
-        if not self.settings.get("event_remind_on", True):
+        if not self.settings.get("event_remind_on", True) or not self.has("events"):
             return
         mins = int(self.settings.get("event_remind", 10))
         changed = False
@@ -1326,7 +1387,7 @@ class App(tk.Tk):
             sub += "  ·  ✎ " + (first if len(first) <= 30 else first[:30] + " …")
         line = tk.Frame(col, bg=bg)
         line.pack(fill="x")
-        dl = self._linked_deadline(t["title"])
+        dl = self._linked_deadline(t["title"]) if self.has("deadlines") else None
         if dl:  # 연결된 마감: 'D-6' 을 색으로
             n = (date.fromisoformat(dl["date"]) - self.today).days
             dbg, dfg = dday_colors(n)
@@ -1506,7 +1567,9 @@ class App(tk.Tk):
                 for x in targets:
                     sub.add_command(label=x["title"], command=lambda x=x: self.set_parent(t, x))
                 m.add_cascade(label="다른 할 일 아래로 묶기", menu=sub)
+        if not t.get("parent") and (self.has("deadlines") or self.has("goals")):
             m.add_separator()
+        if not t.get("parent") and self.has("deadlines"):
             # 마감 연결: 이 할 일(묶음)의 남은 하위 수와 페이스를 디데이 옆에 표시
             dm = tk.Menu(m, tearoff=0, **self.menu_style)
             today = self.today.isoformat()
@@ -1517,6 +1580,7 @@ class App(tk.Tk):
                                command=lambda dl=dl: self.link_deadline(dl, t["title"]))
             dm.add_command(label="+ 새 마감 만들기…", command=lambda: self.open_deadlines(group=t["title"]))
             m.add_cascade(label="마감 연결", menu=dm)
+        if not t.get("parent") and self.has("goals"):
             # 목표 연결: 이 제목의 시간이 목표 누적 시간에 합산
             gm = tk.Menu(m, tearoff=0, **self.menu_style)
             for g in self.goals:
@@ -1753,7 +1817,7 @@ class App(tk.Tk):
         self.toast = Toast(self, title, body, action)
 
     def _review_nudge(self):
-        if not self.settings.get("review_on", True):
+        if not self.settings.get("review_on", True) or not self.has("review"):
             return
         today = self.today.isoformat()
         if today in (self.settings.get("reviewed"), self.settings.get("nudged")):
@@ -1832,6 +1896,8 @@ class App(tk.Tk):
 
     def hotkey_review(self):
         self.summon()
+        if not self.has("review"):
+            return
         self.open_review()
 
     # ---------- actions ----------
@@ -1904,7 +1970,7 @@ class App(tk.Tk):
         text = "" if self._ph_on else self.entry.get().strip()
         if not text:
             return
-        event = parse_event(text)
+        event = parse_event(text) if self.has("events") else None
         if event:  # '13:30 회의' → 보고 있는 날짜의 일정
             self.entry.delete(0, "end")
             self.add_event(self.day, *event)
@@ -2248,9 +2314,9 @@ class CalendarPopup(tk.Toplevel):
                      fg=C["danger"] if i == 0 else C["muted"]).grid(row=0, column=i, pady=(0, 4))
         task_days = {k for k, v in self.app.store.data.items() if v}
         hide_past = self.app.settings.get("hide_past_deadlines", True)
-        dl_days = {d["date"] for d in self.app.deadlines
+        dl_days = {d["date"] for d in (self.app.deadlines if self.app.has("deadlines") else [])
                    if not (hide_past and d["date"] < self.app.today.isoformat())}
-        ev_days = {k for k, v in self.app.events.items() if v}
+        ev_days = {k for k, v in self.app.events.items() if v} if self.app.has("events") else set()
         weeks = calendar.Calendar(firstweekday=6).monthdatescalendar(self.month.year, self.month.month)
         for r, week in enumerate(weeks, start=1):
             for c, d in enumerate(week):
@@ -2540,6 +2606,88 @@ class BackupDialog(Dialog):
     def open_folder(self):
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
         os.startfile(BACKUP_DIR)
+
+
+class FeatureDialog(Dialog):
+    """기능 켜고 끄기. 바꾸면 바로 반영, 기록은 지우지 않음."""
+
+    def __init__(self, app):
+        super().__init__(app, "기능 켜고 끄기")
+        tk.Label(self, text="기능 켜고 끄기", font=(FONT, 13, "bold"), bg=C["bg"], fg=C["text"],
+                 anchor="w").pack(fill="x")
+        self.hint("안 쓰는 기능은 꺼 두면 메뉴와 화면에서 사라져요. 꺼도 기록은 지워지지 않고, 다시 켜면 그대로 보여요.")
+        self.vars = {}
+        grid = tk.Frame(self, bg=C["bg"])
+        grid.pack(fill="x", pady=(10, 0))
+        for i, (key, label, desc) in enumerate(FEATURES):
+            cell = tk.Frame(grid, bg=C["bg"])
+            cell.grid(row=i // 2, column=i % 2, sticky="nw", padx=(0, 18), pady=(0, 8))
+            var = self.vars[key] = tk.BooleanVar(value=app.has(key))
+            var.trace_add("write", lambda *_, k=key: app.set_feature(k, self.vars[k].get()))
+            CheckRow(cell, app, label, var, font=(FONT, 10, "bold")).pack(anchor="w")
+            tk.Label(cell, text=desc, font=(FONT, 8), bg=C["bg"], fg=C["faint"], anchor="w",
+                     padx=app._s(22)).pack(anchor="w")
+        self.hint("할 일 · 타이머 · 일기는 기본 기능이라 항상 켜져 있어요.")
+        btns = tk.Frame(self, bg=C["bg"])
+        btns.pack(fill="x", pady=(10, 0))
+        self.primary(btns, "닫기", self.close).pack(side="right")
+        self.finish()
+
+
+class HelpDialog(Dialog):
+    """한 장짜리 사용법 · 단축키."""
+
+    def __init__(self, app):
+        super().__init__(app, "사용법 · 단축키")
+        keys = app.settings.get("hotkeys", DEFAULT_HOTKEYS)
+        hk = lambda a: (keys.get(a) or {}).get("label", "꺼짐")
+        sections = [
+            ("입력창에 적기", [
+                ("보고서 쓰기", "할 일"),
+                ("KAMP > 데이터 EDA", "'KAMP' 묶음 아래 하위 할 일 (입력창에 'KAMP > '가 남아 연속 입력)"),
+                ("13:30 회의", "그날 일정 · '오후 3시 면담', '6시 반 저녁'도 돼요"),
+                ("미정 KAMP 회의", "시간 미정 일정 ('종일 MT'도 같음)"),
+                ("10/5 13:30 회의", "일정표 창에서: 날짜까지 한 번에"),
+            ]),
+            ("마우스", [
+                ("제목 클릭", "메모 · 예상 시간 · 기록 시간 수정"),
+                ("길게 누르고 끌기", "순서 바꾸기 (묶음은 하위까지 통째로)"),
+                ("우클릭", "묶기 · 묶음에서 빼기 · 마감/목표 연결 · 삭제"),
+                ("날짜 클릭", "달력 열기 → 날짜로 이동"),
+                ("▸ 일정  ▸ 마감", "날짜 아래 버튼: 펼치기 / 접기"),
+                ("◢ (위젯 모드)", "오른쪽 아래를 끌어서 크기 조절"),
+            ]),
+            ("키보드", [
+                (hk("show"), "어디서든 위젯 불러와서 바로 입력"),
+                (hk("timer"), "마지막 타이머 시작 / 정지"),
+                (hk("review"), "오늘 정리하기"),
+                ("Ctrl+Z", "방금 한 일 되돌리기 (삭제 · 체크 · 순서 · 묶기)"),
+                ("Ctrl+Enter / Esc", "상세 창 저장 / 닫기"),
+                ("Tab", "만다라트: 다음 칸으로"),
+            ]),
+            ("알아 두면 좋은 것", [
+                ("자리 비움", "타이머 켜고 10분 입력이 없으면 돌아왔을 때 그 시간을 뺄지 물어봐요"),
+                ("자정", "켜 둔 타이머는 자정에 나뉘어 오늘 할 일로 이어져요"),
+                ("백업", "매일 자동 (⋯ → 백업 · 복원)"),
+            ]),
+        ]
+        tk.Label(self, text="사용법 · 단축키", font=(FONT, 13, "bold"), bg=C["bg"], fg=C["text"],
+                 anchor="w").pack(fill="x")
+        for title, rows in sections:
+            self.section(title, top=12)
+            for key, desc in rows:
+                row = tk.Frame(self, bg=C["bg"])
+                row.pack(fill="x", pady=1)
+                tk.Label(row, text=key, font=(FONT, 9, "bold"), bg=C["btn"], fg=C["text"], width=18,
+                         anchor="w", padx=8, pady=2).pack(side="left")
+                tk.Label(row, text=desc, font=(FONT, 9), bg=C["bg"], fg=C["text"], anchor="w",
+                         justify="left", wraplength=app._s(380)).pack(side="left", fill="x", padx=(8, 0))
+        btns = tk.Frame(self, bg=C["bg"])
+        btns.pack(fill="x", pady=(14, 0))
+        app._button(btns, "단축키 바꾸기", lambda: (self.destroy(), app.open_settings()), font=(FONT, 9),
+                    pady=2).pack(side="left")
+        self.primary(btns, "닫기", self.close).pack(side="right")
+        self.finish()
 
 
 class CheckRow(tk.Frame):
@@ -3001,10 +3149,12 @@ class ReviewDialog(Dialog):
             if len(undone) > 8:
                 self.hint(f"외 {len(undone) - 8}개는 그대로 둬요")
 
-        self.section("습관")
-        HabitBar(self, app, lambda: day).pack(fill="x")
-        self.section("기분")
-        MoodPicker(self, app, lambda: day, bg=C["bg"], size=26).pack(anchor="w")
+        if app.has("habits"):
+            self.section("습관")
+            HabitBar(self, app, lambda: day).pack(fill="x")
+        if app.has("mood"):
+            self.section("기분")
+            MoodPicker(self, app, lambda: day, bg=C["bg"], size=26).pack(anchor="w")
         self.section("한 줄 회고")
         self.text = app._field(self, tk.Text, height=4, width=46, wrap="word", font=(FONT, 10),
                                padx=10, pady=8, undo=True)
@@ -3422,7 +3572,7 @@ class ScheduleWindow(tk.Toplevel):
         iso = d.isoformat()
         evs = sorted(self.app.events.get(iso, []), key=lambda e: e["time"])  # 시간 미정("")이 맨 위
         hide = self.app.settings.get("hide_past_deadlines", True) and d < self.app.today
-        dls = [] if hide else [x for x in self.app.deadlines if x["date"] == iso]
+        dls = [] if hide or not self.app.has("deadlines") else [x for x in self.app.deadlines if x["date"] == iso]
         return evs, dls
 
     def _wheel(self, e):
@@ -3842,7 +3992,7 @@ class StatsWindow(tk.Toplevel):
                            fill=C["moss"] if is_today else C["muted"], font=(FONT, 10, "bold"))
             cv.create_text(cx, base + s(22), text=f"{d.month}/{d.day}", anchor="n",
                            fill=C["faint"], font=(FONT, 8))
-            mood = a.moods.get(d.isoformat())
+            mood = a.moods.get(d.isoformat()) if a.has("mood") else None
             if mood:
                 draw_face(cv, cx - face / 2, base + s(44), face, mood, MOODS[mood - 1][2], True, C["ink"])
             else:
@@ -3872,7 +4022,7 @@ class StatsWindow(tk.Toplevel):
 
         # 습관: 7일 체크 격자
         has_right = False
-        habits = a.habits["habits"]
+        habits = a.habits["habits"] if a.has("habits") else []
         if habits:
             has_right = True
             self._section("습관", right, top=0)
@@ -3901,7 +4051,7 @@ class StatsWindow(tk.Toplevel):
                          anchor="w").pack(side="left", fill="x", expand=True)
 
         # 큰 목표: 이번 주에 쌓은 시간
-        if a.goals:
+        if a.goals and a.has("goals"):
             has_right = True
             self._section("큰 목표 (이번 기간)", right, top=14 if habits else 0)
             for g in a.goals:

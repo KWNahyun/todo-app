@@ -3,12 +3,16 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
+# PATH 에 python 이 없을 때(설치 프로그램이 환경 변수를 바꾼 경우)도 동작하게 직접 경로 사용
+$py = Join-Path $env:LOCALAPPDATA 'Python\pythoncore-3.14-64\python.exe'
+if (-not (Test-Path $py)) { $py = 'python' }
+
 Write-Host '1/4 테스트' -ForegroundColor Green
-python -m unittest discover -s tests
+& $py -m unittest discover -s tests
 if ($LASTEXITCODE -ne 0) { throw '테스트 실패 — 빌드하지 않습니다' }
 
 Write-Host '2/4 빌드' -ForegroundColor Green
-python -m PyInstaller --noconfirm --clean --windowed --name DailyTodo --icon icon.ico --add-data 'icon.ico;.' todo.pyw
+& $py -m PyInstaller --noconfirm --clean --windowed --name DailyTodo --icon icon.ico --add-data 'icon.ico;.' todo.pyw
 if ($LASTEXITCODE -ne 0) { throw '빌드 실패' }
 
 Write-Host '3/4 설치' -ForegroundColor Green
