@@ -287,7 +287,8 @@ class WindowMixin:
             for label, cmd in items:
                 m.add_command(label=label, command=cmd)
 
-        group([("review", "오늘 정리하기", self.open_review), ("stats", "주간 통계", self.open_stats),
+        group([(None, "기록장 (다이어리)", self.open_records),
+               ("review", "오늘 정리하기", self.open_review), ("stats", "주간 통계", self.open_stats),
                ("events", "일정표 (주 · 2주 · 한 달)", self.open_schedule)])
         group([("goals", "큰 목표", self.open_goals), ("deadlines", "마감 일정 (디데이)", self.open_deadlines),
                ("habits", "습관 관리", self.open_habits), ("mandala", "만다라트", self.open_mandala), (None, "이전 미완료 가져오기", self.carry_over)])

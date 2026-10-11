@@ -298,6 +298,7 @@ class BackupDialog(Dialog):
 
     def backup_now(self):
         self.app._save_diary()
+        self.app._flush_records()
         self.app.store.save()
         p = make_backup(f"수동-{datetime.now():%Y%m%d-%H%M%S}")
         self.status.config(text=f"백업했어요: {p.name}")
@@ -309,6 +310,7 @@ class BackupDialog(Dialog):
             return
         a = self.app
         a._save_diary()
+        a._flush_records()  # 기록장에 쓰던 글도 '복원전' 백업에 들어가게
         a.store.save()
         make_backup(f"복원전-{datetime.now():%Y%m%d-%H%M%S}")
         restore_backup(path)

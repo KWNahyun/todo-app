@@ -25,7 +25,7 @@ os.environ["DAILY_TODO_NO_HOTKEYS"] = "1"
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 MODULES = ["config", "core", "storage", "winapi", "widgets", "dialogs", "schedule", "mandala", "stats",
-           "ui_window", "ui_journal", "ui_top", "ui_tasks", "ui_timers", "app"]
+           "records", "ui_window", "ui_journal", "ui_top", "ui_tasks", "ui_timers", "app"]
 mods = {m: importlib.import_module(f"dailytodo.{m}") for m in MODULES}
 dialogs, winapi = mods["dialogs"], mods["winapi"]
 # 테스트에서 읽기 편하게 모든 공개 이름을 todo.이름 으로 (바꿔치기는 실제 모듈에서)
@@ -364,6 +364,74 @@ class FeatureTest(AppCase):
             self.app.update()
             self.assertTrue(d.winfo_exists())
             d.destroy()
+
+
+# ---------------------------------------------------------------- 기록장 · 다이어리
+class DiaryTest(AppCase):
+    files = {"journal.json": {iso(-1): "어제는 KAMP 발표를 했다.\n떨렸지만 잘 끝났다.",
+                              iso(-40): "한 달 전 일기: 코테 공부 시작"},
+             "moods.json": {iso(-1): 5},
+             "tasks.json": {iso(-1): [task("a", "발표", 3600.0, done=True), task("b", "빨래")]}}
+
+    def open(self, n=0):
+        self.app.open_records(TODAY + timedelta(days=n))
+        self.app.update()
+        return self.app.records_win.views["diary"]
+
+    def write(self, view, text):
+        view.text.delete("1.0", "end")
+        view.text.insert("1.0", text)
+        view.text.edit_modified(True)
+        view._changed(None)
+        view.save_now()
+
+    def test_write_syncs_with_widget(self):
+        a = self.app
+        v = self.open()
+        self.write(v, "기록장에서 쓴 오늘 일기")
+        self.assertEqual(a.journal[iso()], "기록장에서 쓴 오늘 일기")
+        self.assertEqual(a.diary_text.get("1.0", "end-1c"), "기록장에서 쓴 오늘 일기")  # 위젯에도 바로
+        a.diary_text.delete("1.0", "end")
+        a.diary_text.insert("1.0", "위젯에서 고침")
+        a._save_diary()
+        a.update()
+        self.assertEqual(v.text.get("1.0", "end-1c"), "위젯에서 고침")  # 기록장에도 바로
+
+    def test_day_summary_and_mood(self):
+        v = self.open(-1)
+        self.assertIn("할 일 1/2 완료", v.summary.cget("text"))
+        self.assertIn("1시간", v.summary.cget("text"))
+        self.assertEqual(self.app.moods[iso(-1)], 5)
+        self.assertFalse(v.prompt.winfo_ismapped())  # 글이 있으면 질문 안 보임
+        v.select(TODAY)
+        self.app.update()
+        self.assertTrue(v.prompt.winfo_ismapped())
+        v.use_prompt()
+        self.assertTrue(v.text.get("1.0", "end-1c").startswith("Q. "))
+
+    def test_search_across_months(self):
+        v = self.open()
+        v.query.set("코테")
+        self.app.update()
+        self.assertEqual(v.month_lbl.cget("text"), "검색 결과 1개")
+
+    def test_export(self):
+        v = self.open()
+        out = DATA_DIR / "export.md"
+        v.export(str(out))
+        text = out.read_text(encoding="utf-8")
+        self.assertIn("기분: 최고", text)
+        self.assertIn("떨렸지만 잘 끝났다.", text)
+        self.assertLess(text.index(iso(-40)), text.index(iso(-1)))  # 날짜순
+
+    def test_unsaved_text_saved_on_close(self):
+        a = self.app
+        v = self.open()
+        v.text.insert("1.0", "저장 버튼 없이 닫기")
+        v.text.edit_modified(True)
+        v._changed(None)  # 0.7초 뒤 저장 예약만 된 상태
+        a.records_win.close()
+        self.assertEqual(a.journal[iso()], "저장 버튼 없이 닫기")
 
 
 # ---------------------------------------------------------------- 백업

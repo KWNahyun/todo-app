@@ -146,6 +146,7 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
         if self.mandala_win and self.mandala_win.winfo_exists():
             self.mandala_win.draw()
         self._redraw_schedule()
+        self._redraw_records(force=True)  # 기록장에 쓰던 글이 있어도 복원된 내용으로
 
     def open_backups(self):
         self._open_window("backup_win", BackupDialog)
@@ -290,6 +291,7 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
                     stop(t)
         self.store.save()
         self._save_diary()
+        self._flush_records()
         self.settings["heartbeat"] = None  # 정상 종료 — 다음 실행 때 '꺼져 있던 동안' 확인 안 함
         self._save_settings()
         self.shutdown()

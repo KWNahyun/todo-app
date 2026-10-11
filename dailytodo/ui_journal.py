@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from .config import C, FONT, HABIT_FILE, JOURNAL_FILE, MOOD_FILE
 from .storage import save_json
+from .records import RecordsWindow
 from .widgets import HabitBar, MoodPicker
 
 
@@ -19,6 +20,9 @@ class JournalMixin:
                                    cursor="hand2", anchor="w")
         self.diary_head.pack(side="left")
         self.diary_head.bind("<Button-1>", lambda e: self._toggle_diary())
+        records = tk.Label(head, text="기록장 ›", font=(FONT, 9), bg=C["bg"], fg=C["muted"], cursor="hand2")
+        records.pack(side="right", padx=(8, 0))
+        records.bind("<Button-1>", lambda e: self.open_records(self.day))
         self.mood_picker = MoodPicker(head, self, lambda: self.day, bg=C["bg"])
         self.mood_picker.pack(side="right")
         self.diary_status = tk.Label(head, font=(FONT, 8), bg=C["bg"], fg=C["faint"])
@@ -39,8 +43,8 @@ class JournalMixin:
             self.diary_text.pack(fill="x", pady=(6, 0))
         self._update_diary_head()
 
-    def set_journal(self, iso, text):
-        """다른 창(오늘 정리하기)에서 일기를 바꿨을 때: 저장하고 화면에도 반영."""
+    def set_journal(self, iso, text, source=None):
+        """다른 창(오늘 정리하기 · 기록장)에서 일기를 바꿨을 때: 저장하고 화면에도 반영."""
         if text:
             self.journal[iso] = text
         else:
@@ -50,6 +54,7 @@ class JournalMixin:
             self.diary_text.delete("1.0", "end")
             self.diary_text.insert("1.0", text)
             self.diary_text.edit_modified(False)
+        self._redraw_records(source)
 
     def set_mood(self, iso, level):
         if level:
@@ -59,6 +64,32 @@ class JournalMixin:
         save_json(MOOD_FILE, dict(sorted(self.moods.items())))
         self.mood_picker.draw()
         self._redraw_stats()
+        self._redraw_records()
+
+    # ---------- 기록장 ----------
+    def open_records(self, day=None):
+        win = getattr(self, "records_win", None)
+        if win and win.winfo_exists():
+            win.deiconify()
+            win.lift()
+            win.focus_force()
+        else:
+            win = self.records_win = RecordsWindow(self)
+        if day:
+            win.show_diary(day)
+
+    def _redraw_records(self, source=None, force=False):
+        """일기·기분이 바뀌면 기록장도 맞춤 (바꾼 쪽이 기록장 자신이면 편집 중인 글은 그대로)."""
+        win = getattr(self, "records_win", None)
+        if win and win.winfo_exists():
+            win.refresh(source, force)
+
+    def _flush_records(self):
+        """기록장에서 아직 저장 안 된 글을 지금 저장 (종료 · 백업 전)."""
+        win = getattr(self, "records_win", None)
+        if win and win.winfo_exists():
+            for view in win.views.values():
+                view.save_now()
 
     def toggle_habit(self, iso, hid):
         done = self.habits["log"].setdefault(iso, [])
@@ -128,3 +159,4 @@ class JournalMixin:
             self.journal.pop(self._diary_day, None)
         save_json(JOURNAL_FILE, dict(sorted(self.journal.items())))
         self.diary_status.config(text="저장됨")
+        self._redraw_records()
