@@ -293,6 +293,43 @@ class DeadlineEditTest(AppCase):
         w.destroy()
 
 
+class StatsBasisTest(AppCase):
+    files = {"tasks.json": {
+        iso(-1): [task("K", "KAMP"), task("k1", "EDA", 3600.0, parent="K", done=True),
+                  task("k2", "모델링", 1800.0, parent="K", done=True), task("x", "빨래", 60.0, done=True)],
+        iso(0): [task("a", "코테", 7200.0), task("b", "메일", 0.0, done=True)]}}
+
+    def labels(self, w):
+        """화면에 놓인 순서대로 글자 모으기."""
+        out = []
+
+        def walk(widget):
+            for c in widget.winfo_children():
+                if isinstance(c, todo.tk.Label):
+                    out.append(c.cget("text"))
+                walk(c)
+        walk(w.body)
+        return out
+
+    def test_switch_basis(self):
+        a = self.app
+        a.open_stats()
+        w = a.stats_win
+        w.set_basis("time")
+        texts = self.labels(w)
+        self.assertIn("가장 오래 한 일", texts)
+        self.assertIn("코테", texts[texts.index("가장 오래 한 일"):][:3])  # 2시간이 1위
+        w.set_basis("done")
+        texts = self.labels(w)
+        self.assertIn("가장 많이 끝낸 일", texts)
+        self.assertIn("4개", texts)  # 완료한 일 4개 (상위 할 일 KAMP 는 세지 않음)
+        self.assertIn("80%", texts)  # 4/5
+        top = texts[texts.index("가장 많이 끝낸 일"):]
+        self.assertEqual(top[1:3], ["2개", "KAMP"])  # 묶음으로 합산
+        self.assertEqual(a.settings["stats_basis"], "done")  # 선택 기억
+        w.destroy()
+
+
 # ---------------------------------------------------------------- 자리 비움
 class AwayTest(AppCase):
     def setUp(self):
