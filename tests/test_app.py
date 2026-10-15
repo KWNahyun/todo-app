@@ -621,7 +621,22 @@ class CollectionsTest(AppCase):
     def test_all_collections_in_sidebar(self):
         self.open("bucket")
         self.assertEqual(list(self.app.records_win.side_btns),
-                         ["diary", "bucket", "places", "reviews", "hobby"])
+                         ["diary", "bucket", "places", "reviews", "date", "hobby"])
+
+    def test_date_diary(self):
+        v = self.open("date")
+        it = self.add(v, "#기념일 100일 기념 데이트")
+        self.assertEqual((it["title"], it["tags"], it["date"]), ("100일 기념 데이트", ["기념일"], iso()))
+        v.field_entries["where"].insert(0, "성수 → 서울숲")
+        v.field_entries["cost"].insert(0, "52,000원")
+        v._commit_fields()
+        v.set_field(it, "rating", 5)
+        self.assertEqual(v._subtitle(it), "성수 → 서울숲  ·  ★★★★★")
+        older = self.add(v, "한강 피크닉")
+        v.set_date(older, "date", TODAY - timedelta(days=20))
+        self.assertEqual([x["title"] for x in v.visible()], ["100일 기념 데이트", "한강 피크닉"])
+        saved = json.loads((DATA_DIR / "collections.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["date"][0]["cost"], "52,000원")
 
     def test_places_done_rating_where(self):
         v = self.open("places")
