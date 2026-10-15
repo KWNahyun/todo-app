@@ -57,6 +57,19 @@ describe("타이머 = 세션", () => {
     expect(dayTotalsMs(rep, base)).toEqual({ "2026-10-15": 50 * MIN, "2026-10-14": MIN });
   });
 
+  it("창마다 복제본이 따로여도 같은 PC ID 로 재면 한 기기로 침", async () => {
+    const fs = new MemoryFs();
+    const clk = manualClock();
+    const widget = await Replica.open(fs, { deviceId: "pc-1-widget", wall: clk.now });
+    const main = await Replica.open(fs, { deviceId: "pc-1-main", wall: clk.now });
+    const t = widget.create("task", { day: "2026-10-15", title: "모델링" });
+    const s = startTimer(widget, t, clk.now(), { deviceId: "pc-1" });
+    await widget.sync();
+    await main.sync();
+    expect(startTimer(main, t, clk.now(), { deviceId: "pc-1" })).toBe(s);
+    expect(runningOnManyDevices(main)).toEqual([]);
+  });
+
   it("두 기기에서 같은 할 일을 재면 둘 다 기록되고 안내할 수 있음", async () => {
     const fs = new MemoryFs();
     const clk = manualClock();

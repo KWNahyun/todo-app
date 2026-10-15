@@ -23,19 +23,15 @@ jobs:
       - name: 테스트
         run: python -m unittest discover -s tests -v
 
-  core:
-    # v2 동기화 핵심 라이브러리 (이 job 은 v2 브랜치의 ci.yml 에만 있음)
+  v2:
+    # v2: 동기화 핵심(packages/core) + 데스크톱 앱 화면(apps/desktop) — 이 job 은 v2 브랜치의 ci.yml 에만 있음
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/core
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: packages/core/package-lock.json
       - run: npm ci
       - name: 타입 검사
         run: npm run typecheck

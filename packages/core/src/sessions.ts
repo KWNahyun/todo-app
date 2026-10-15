@@ -32,21 +32,24 @@ export function isRunning(rep: Replica, taskId: string): boolean {
 
 /**
  * 타이머 켜기. single(기본) 이면 다른 할 일의 재는 중 세션은 닫음 (v1 의 "하나만 켜기").
- * 이미 이 할 일을 재는 중이면 그 세션을 그대로 돌려줌.
+ * 이미 이 기기에서 이 할 일을 재는 중이면 그 세션을 그대로 돌려줌.
+ * deviceId: 세션에 적을 기기 (기본은 복제본 ID). PC 의 위젯 · 메인 창처럼 창마다 복제본이 따로여도
+ * 같은 PC 로 치려면 PC ID 를 넘김.
  */
 export function startTimer(
   rep: Replica,
   taskId: string,
   now: number,
-  opts: { single?: boolean; kind?: SessionKind } = {},
+  opts: { single?: boolean; kind?: SessionKind; deviceId?: string } = {},
 ): string {
+  const device = opts.deviceId ?? rep.deviceId;
   const running = runningSessions(rep);
-  const mine = running.find((s) => s.taskId === taskId && s.deviceId === rep.deviceId);
+  const mine = running.find((s) => s.taskId === taskId && s.deviceId === device);
   if (opts.single ?? true) {
     for (const s of running) if (s.taskId !== taskId) stopSession(rep, s.id, now);
   }
   if (mine) return mine.id;
-  return rep.create("session", { taskId, start: now, end: null, deviceId: rep.deviceId, kind: opts.kind ?? "normal" });
+  return rep.create("session", { taskId, start: now, end: null, deviceId: device, kind: opts.kind ?? "normal" });
 }
 
 export function stopSession(rep: Replica, sessionId: string, now: number): void {

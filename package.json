@@ -1,0 +1,16 @@
+{
+  "name": "dailytodo",
+  "private": true,
+  "description": "Daily Todo v2 — packages/core(동기화 핵심) · apps/desktop(Tauri 데스크톱 앱). v1(Python)은 dailytodo/",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "npm run tauri dev -w apps/desktop",
+    "web": "npm run web -w apps/desktop",
+    "build:app": "npm run tauri build -w apps/desktop"
+  }
+}

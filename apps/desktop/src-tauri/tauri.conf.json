@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Daily Todo",
+  "version": "0.2.0",
+  "identifier": "com.kwnahyun.dailytodo",
+  "build": {
+    "beforeDevCommand": "npm run web",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "widget",
+        "title": "Daily Todo",
+        "url": "index.html?view=widget",
+        "width": 380,
+        "height": 760,
+        "minWidth": 300,
+        "minHeight": 360,
+        "decorations": false,
+        "resizable": true,
+        "skipTaskbar": false
+      },
+      {
+        "label": "main",
+        "title": "Daily Todo",
+        "url": "index.html",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 720,
+        "minHeight": 480,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["Korean"]
+      }
+    }
+  }
+}

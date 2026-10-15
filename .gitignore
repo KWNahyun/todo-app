@@ -4,5 +4,7 @@ dist/
 *.spec
 __pycache__/
 icon_preview.png
-# v2 (npm install 로 다시 받음)
+# v2 (npm install · cargo · tauri build 로 다시 만듦)
 node_modules/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
