@@ -256,9 +256,9 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 
       동그라미를 누르면 체크되고, 햇살색 할 일은 타이머가 실제로 흘러가요.</p>
     <div class="switcher" role="group" aria-label="앱 테마">
       <span>앱 테마</span>
-      <button type="button" id="t-wood" data-set="wood" aria-pressed="true"><i class="dot" style="background:#f3e9d6"></i>숲 우드 (기본)</button>
+      <button type="button" id="t-minimal" data-set="minimal" aria-pressed="true"><i class="dot" style="background:#ffffff"></i>미니멀 (기본)</button>
+      <button type="button" id="t-wood" data-set="wood" aria-pressed="false"><i class="dot" style="background:#f3e9d6"></i>숲 우드</button>
       <button type="button" id="t-dark" data-set="dark" aria-pressed="false"><i class="dot" style="background:#15231b"></i>다크 숲</button>
-      <button type="button" id="t-minimal" data-set="minimal" aria-pressed="false"><i class="dot" style="background:#ffffff"></i>미니멀</button>
     </div>
   </header>
 
@@ -494,6 +494,12 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 
       <p>테마는 아래 역할 색 여덟 개와 글꼴만 바꿔요. 화면 코드는 그대로.</p>
     </div>
     <div class="tokens">
+      <div class="app" data-app-theme="minimal" data-fixed>
+        <h3>미니멀 · 기본</h3>
+        <div class="sw"><div style="background:var(--bg)"></div><div style="background:var(--surface)"></div><div style="background:var(--accent)"></div><div style="background:var(--active)"></div></div>
+        <div class="sw-l"><span>바탕</span><span>카드</span><span>포인트</span><span>진행 중</span></div>
+        <div class="typescale"><span style="font-family:var(--font-display);font-size:22px">10월 15일 목요일</span><span>본문 15 · 모델링</span><span class="num muted">0:25:10</span></div>
+      </div>
       <div class="app" data-app-theme="wood" data-fixed>
         <h3>숲 우드</h3>
         <div class="sw"><div style="background:var(--bg)"></div><div style="background:var(--surface)"></div><div style="background:var(--accent)"></div><div style="background:var(--active)"></div></div>
@@ -506,22 +512,16 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 
         <div class="sw-l"><span>바탕</span><span>카드</span><span>포인트</span><span>진행 중</span></div>
         <div class="typescale"><span style="font-family:var(--font-display);font-size:22px">10월 15일 목요일</span><span>본문 15 · 모델링</span><span class="num muted">0:25:10</span></div>
       </div>
-      <div class="app" data-app-theme="minimal" data-fixed>
-        <h3>미니멀</h3>
-        <div class="sw"><div style="background:var(--bg)"></div><div style="background:var(--surface)"></div><div style="background:var(--accent)"></div><div style="background:var(--active)"></div></div>
-        <div class="sw-l"><span>바탕</span><span>카드</span><span>포인트</span><span>진행 중</span></div>
-        <div class="typescale"><span style="font-family:var(--font-display);font-size:22px">10월 15일 목요일</span><span>본문 15 · 모델링</span><span class="num muted">0:25:10</span></div>
-      </div>
     </div>
   </section>
 
   <section class="decide">
-    <h2>보고 정해 주세요</h2>
+    <h2>정한 것 (10월 15일)</h2>
     <ol>
-      <li>기본 테마는 <b>숲 우드</b> 그대로 갈까요, 다크 숲이나 미니멀이 더 마음에 드나요?</li>
-      <li>위젯 배치는 v1 과 거의 같게 뒀어요. 더 줄이고 싶은 부분(습관 칩, 오늘의 기록 미리보기 등)이 있나요?</li>
-      <li>날짜 · 제목에 쓴 <b>명조체</b>(기록 느낌)와 본문 고딕의 조합이 괜찮은가요, 전부 고딕이 나은가요?</li>
-      <li>휴대폰 아래 탭 세 개(오늘 · 일정 · 데이트) 순서와 이름이 괜찮나요?</li>
+      <li>기본 테마는 <b>미니멀</b>. 숲 우드 · 다크 숲은 설정에서 고르는 테마로.</li>
+      <li>위젯 배치는 v1 과 거의 같게 시안 그대로.</li>
+      <li>날짜 · 제목은 <b>명조체</b>, 본문은 고딕.</li>
+      <li>휴대폰 아래 탭은 오늘 · 일정 · 데이트.</li>
     </ol>
     <p class="lede" style="font-size:13px">시안의 글꼴은 웹에서 쓸 수 있는 Noto Sans KR · 고운바탕으로 보여 줘요. 실제 앱의 기본 본문은 Pretendard 예정이에요.</p>
   </section>
@@ -542,7 +542,7 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 
   });
   var saved = null;
   try { saved = localStorage.getItem('dt-mock-theme'); } catch (e) {}
-  setTheme(saved || 'wood');
+  setTheme(saved || 'minimal');
 
   // 동그라미 누르면 체크
   document.querySelectorAll('.check').forEach(function (c) {
