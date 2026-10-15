@@ -55,6 +55,16 @@ SCHEMAS = {
         pick="왼쪽에서 하나를 고르면 별점과 감상을 적을 수 있어요.",
         task_group="콘텐츠",
     ),
+    "date": dict(
+        label="데이트 일기", mode="log",
+        add_hint="오늘 데이트를 한 줄로 적고 Enter   (#기념일 #맛집 처럼 #로 분류)",
+        fields=[("where", "장소 · 코스", "text"), ("rating", "오늘의 별점", "rating"), ("cost", "쓴 돈", "text"),
+                ("file", "사진", "file")],
+        subtitle=["where", "rating"],
+        note_label="무엇을 했는지 · 좋았던 순간 · 다음에 하고 싶은 것",
+        empty="함께한 날을 남겨 보세요.\n어디서 무엇을 했는지, 좋았던 순간 하나만 적어도 충분해요.",
+        pick="왼쪽에서 하루를 고르면 장소 · 사진 · 그날 이야기를 적을 수 있어요.",
+    ),
     "hobby": dict(
         label="취미 기록", mode="log",
         add_hint="오늘의 취미 기록 제목을 적고 Enter   (#그림 #기타 처럼 #로 분류)",
