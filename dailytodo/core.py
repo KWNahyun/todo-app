@@ -151,23 +151,58 @@ def normalize_mandala(d):
 DATE_PREFIX_RE = re.compile(r"^(?:(\d{1,2})[/.](\d{1,2})|(\d{1,2})월\s*(\d{1,2})일)\s+(.+)$")
 
 
+def parse_date_prefix(text, today):
+    """앞에 붙은 '10/5' · '10월 5일' → (날짜, 나머지 글, 오류). 날짜가 없으면 (None, 글, None).
+    두 달 넘게 지난 날짜면 내년으로 봄."""
+    m = DATE_PREFIX_RE.match(text.strip())
+    if not m:
+        return None, text.strip(), None
+    month, dd = int(m[1] or m[3]), int(m[2] or m[4])
+    try:
+        day = date(today.year, month, dd)
+        if day < today - timedelta(days=60):
+            day = date(today.year + 1, month, dd)
+    except ValueError:
+        return None, m[5].strip(), f"{month}월 {dd}일은 없는 날짜예요."
+    return day, m[5].strip(), None
+
+
 def parse_dated_event(text, default_day, today):
     """'10/5 13:30 회의' · '10월 5일 오후 3시 회의' · '13:30 회의'(→ default_day).
     일정표에서는 시간이 없으면 시간 미정: 'KAMP 회의', '10/7 MT'. 실패하면 (None, 이유)."""
     if not text.strip():
         return None, "일정 내용을 적어 주세요."
-    day, m = default_day, DATE_PREFIX_RE.match(text.strip())
-    if m:
-        month, dd = int(m[1] or m[3]), int(m[2] or m[4])
-        text = m[5]
-        try:
-            day = date(today.year, month, dd)
-        except ValueError:
-            return None, f"{month}월 {dd}일은 없는 날짜예요."
-        if day < today - timedelta(days=60):  # 두 달 넘게 지난 날짜면 내년으로
-            day = date(today.year + 1, month, dd)
+    day, text, err = parse_date_prefix(text, today)
+    if err:
+        return None, err
     ev = parse_event(text) or ("", text.strip())  # 시간이 없으면 시간 미정
-    return (day, *ev), None
+    return (day or default_day, *ev), None
+
+
+DEADLINE_RE = re.compile(r"^마감\s+(.+)$")
+
+
+def is_deadline_text(text):
+    """'마감 10/20 KAMP 제출' 처럼 '마감'으로 시작하는지."""
+    return bool(DEADLINE_RE.match(text.strip()))
+
+
+def parse_deadline(text, default_day, today):
+    """'마감 10/20 KAMP 제출' · '10/20 KAMP 제출' → ((날짜, 이름), None).
+    날짜가 없으면 default_day, 그것도 없으면 (None, 이유)."""
+    t = text.strip()
+    m = DEADLINE_RE.match(t)
+    if m:
+        t = m[1]
+    day, title, err = parse_date_prefix(t, today)
+    if err:
+        return None, err
+    if not title:
+        return None, "마감 이름을 적어 주세요."
+    day = day or default_day
+    if not day:
+        return None, "'마감 10/20 KAMP 제출' 처럼 날짜를 함께 적어 주세요."
+    return (day, title), None
 
 
 def sub_index(k):

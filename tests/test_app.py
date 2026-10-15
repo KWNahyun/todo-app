@@ -233,6 +233,66 @@ class EventTest(AppCase):
         w.destroy()
 
 
+class DeadlineEditTest(AppCase):
+    files = {"deadlines.json": [{"id": "d", "title": "KAMP 제출", "date": iso(5), "group": None}],
+             "tasks.json": {iso(): [task("K", "KAMP 경진대회"), task("k1", "모델링", parent="K")]}}
+
+    def test_parse_deadline(self):
+        p = lambda s, d=None: todo.parse_deadline(s, d, TODAY)
+        target = TODAY + timedelta(days=10)
+        self.assertEqual(p(f"마감 {target.month}/{target.day} KAMP 제출")[0], (target, "KAMP 제출"))
+        self.assertEqual(p("보고서", TODAY)[0], (TODAY, "보고서"))  # 일정표: 선택한 날짜
+        self.assertIsNone(p("마감 보고서")[0])  # 위젯: 날짜 꼭 필요
+        self.assertIsNone(p("마감 2/30 x")[0])
+        self.assertTrue(todo.is_deadline_text("마감 10/20 x"))
+        self.assertFalse(todo.is_deadline_text("마감하기 연습"))
+
+    def test_edit_title_date_group(self):
+        a = self.app
+        dl = a.deadlines[0]
+        d = todo.EditDeadlineDialog(a, dl)
+        a.update()
+        d.title_e.delete(0, "end")
+        d.title_e.insert(0, "KAMP 최종 제출")
+        d._set_date(TODAY + timedelta(days=2))
+        self.assertIn("KAMP 경진대회", d._group_choices())
+        d._set_group("KAMP 경진대회")
+        d.save()
+        a.update()
+        self.assertEqual((dl["title"], dl["date"], dl["group"]), ("KAMP 최종 제출", iso(2), "KAMP 경진대회"))
+        saved = json.loads((DATA_DIR / "deadlines.json").read_text(encoding="utf-8"))[0]
+        self.assertEqual(saved["date"], iso(2))
+        self.assertEqual(a._linked_deadline("KAMP 경진대회")["id"], "d")  # 묶음 옆 D-배지
+
+    def test_widget_input_adds_deadline(self):
+        target = TODAY + timedelta(days=7)
+        self.type(f"마감 {target.month}/{target.day} 장학금 서류")
+        self.assertIn(("장학금 서류", target.isoformat()), [(d["title"], d["date"]) for d in self.app.deadlines])
+        self.assertEqual(self.tasks(), [t for t in self.tasks() if t["title"] != "장학금 서류"])  # 할 일로 안 들어감
+        self.type("마감 날짜없음")
+        self.assertNotIn("날짜없음", [d["title"] for d in self.app.deadlines])
+
+    def test_schedule_add_and_edit(self):
+        a = self.app
+        a.open_schedule()
+        w = a.schedule_win
+        w.select(TODAY + timedelta(days=3))
+        w.set_kind("deadline")
+        w.entry.insert(0, "중간 발표")
+        w.add()
+        self.assertIn(("중간 발표", iso(3)), [(d["title"], d["date"]) for d in a.deadlines])
+        w.set_kind("event")
+        w.entry.insert(0, "마감 10/1 다른 것")  # 일정 모드여도 '마감'으로 시작하면 마감
+        w.add()
+        self.assertIn("다른 것", [d["title"] for d in a.deadlines])
+        opened = []
+        a.edit_deadline = lambda dl, anchor=None: opened.append((dl["title"], anchor is w))
+        w._draw_list(w.days() if w.mode != "month" else [])
+        w.edit_deadline(next(d for d in a.deadlines if d["title"] == "KAMP 제출"))
+        self.assertEqual(opened, [("KAMP 제출", True)])
+        w.destroy()
+
+
 # ---------------------------------------------------------------- 자리 비움
 class AwayTest(AppCase):
     def setUp(self):

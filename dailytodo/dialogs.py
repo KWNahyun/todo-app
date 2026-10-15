@@ -160,8 +160,8 @@ class DeadlineDialog(tk.Toplevel):
         self.past_f.pack(fill="x", pady=(8, 0))
         self.hide_past = tk.BooleanVar(value=app.settings.get("hide_past_deadlines", True))
         self.hide_past.trace_add("write", lambda *_: self._set_hide_past())
-        tk.Label(self, text="Enter 추가 · Esc 닫기", font=(FONT, 8), bg=C["bg"], fg=C["faint"],
-                 anchor="w").pack(fill="x", pady=(10, 0))
+        tk.Label(self, text="Enter 추가 · 마감을 누르면 이름 · 날짜 수정 · Esc 닫기", font=(FONT, 8), bg=C["bg"],
+                 fg=C["faint"], anchor="w").pack(fill="x", pady=(10, 0))
         self.bind("<Escape>", lambda e: self.destroy())
         self.draw_list()
 
@@ -234,7 +234,8 @@ class DeadlineDialog(tk.Toplevel):
             d = date.fromisoformat(dl["date"])
             n = (d - self.app.today).days
             bg, fg = dday_colors(n)
-            row = tk.Frame(self.list_f, bg=C["card"], highlightthickness=1, highlightbackground=C["border"])
+            row = tk.Frame(self.list_f, bg=C["card"], highlightthickness=1, highlightbackground=C["border"],
+                           cursor="hand2")
             row.pack(fill="x", pady=(0, 4))
             tk.Label(row, text=dday_text(n), width=6, font=(FONT, 9, "bold"), bg=bg, fg=fg,
                      pady=3).pack(side="left", fill="y")
@@ -249,6 +250,103 @@ class DeadlineDialog(tk.Toplevel):
             if dl.get("group"):
                 tk.Label(col, text=f"↳ {dl['group']}", anchor="w", font=(FONT, 8), bg=C["card"],
                          fg=C["faint"]).pack(fill="x")
+            # 줄을 누르면 수정 (✕ 버튼은 그대로 삭제)
+            for w in [row, col] + row.winfo_children()[:1] + row.winfo_children()[2:3] + col.winfo_children():
+                w.bind("<Button-1>", lambda e, dl=dl: self.edit(dl))
+
+    def edit(self, dl):
+        self.app.edit_deadline(dl, anchor=self)
+        if self.winfo_exists():
+            self.draw_list()
+
+
+class EditDeadlineDialog(Dialog):
+    """마감 하나 고치기: 이름 · 날짜 · 연결된 묶음, 삭제."""
+
+    def __init__(self, app, dl, anchor=None):
+        super().__init__(app, "마감 수정")
+        if anchor:  # 마감 관리 창 · 일정표에서 열면 그 위에 뜨게
+            self.transient(anchor)
+            self.attributes("-topmost", True)
+        self.dl, self.pick, self.group = dl, date.fromisoformat(dl["date"]), dl.get("group")
+        self.section("마감 이름", top=0)
+        self.title_e = app._field(self, width=32)
+        self.title_e.insert(0, dl["title"])
+        self.title_e.pack(fill="x", ipady=6, ipadx=6)
+        self.title_e.bind("<Return>", lambda e: self.save())
+
+        self.section("날짜")
+        row = tk.Frame(self, bg=C["bg"])
+        row.pack(fill="x")
+        self.date_btn = app._button(row, "", self.pick_date, font=(FONT, 10))
+        self.date_btn.pack(side="left")
+        self.dday = tk.Label(row, font=(FONT, 9, "bold"), padx=6)
+        self.dday.pack(side="left", padx=8)
+        self._update_date()
+
+        self.section("연결된 묶음  (남은 하위 할 일 수와 하루 페이스를 디데이 옆에 보여 줘요)")
+        self.group_btn = tk.Menubutton(self, font=(FONT, 10), bg=C["btn"], fg=C["text"], relief="flat",
+                                       activebackground=C["btn_hi"], anchor="w", padx=10, pady=4, cursor="hand2")
+        menu = tk.Menu(self.group_btn, tearoff=0, **app.menu_style)
+        menu.add_command(label="연결 없음", command=lambda: self._set_group(None))
+        for title in self._group_choices():
+            menu.add_command(label=title, command=lambda t=title: self._set_group(t))
+        self.group_btn.config(menu=menu)
+        self.group_btn.pack(fill="x")
+        self._set_group(self.group)
+
+        self.error = tk.Label(self, font=(FONT, 9), bg=C["bg"], fg=C["danger"], anchor="w")
+        self.error.pack(fill="x", pady=(8, 0))
+        btns = tk.Frame(self, bg=C["bg"])
+        btns.pack(fill="x", pady=(4, 0))
+        self.primary(btns, "저장", self.save).pack(side="right")
+        app._button(btns, "취소", self.close, padx=14).pack(side="right", padx=(0, 8))
+        app._button(btns, "삭제", self.delete, fg=C["danger"], hover=C["danger_bg"], padx=14).pack(side="left")
+        self.finish(self.title_e, anchor)
+
+    def _group_choices(self):
+        """최근 30일 동안의 상위 할 일 제목 (지금 연결된 것 포함)."""
+        a = self.app
+        since = (a.today - timedelta(days=30)).isoformat()
+        titles = {t["title"] for k, ts in a.store.data.items() if k >= since for t in ts if not t.get("parent")}
+        if self.group:
+            titles.add(self.group)
+        return sorted(titles)
+
+    def _set_group(self, title):
+        self.group = title
+        self.group_btn.config(text=f"↳ {title}  ▾" if title else "연결 없음  ▾")
+
+    def pick_date(self):
+        CalendarPopup(self.app, self.date_btn, self.pick, self._set_date)
+
+    def _set_date(self, d):
+        self.pick = d
+        self._update_date()
+
+    def _update_date(self):
+        d, n = self.pick, (self.pick - self.app.today).days
+        self.date_btn.config(text=f"{d:%Y.%m.%d} ({WEEKDAYS[d.weekday()]}) ▾")
+        bg, fg = dday_colors(n)
+        self.dday.config(text=dday_text(n), bg=bg, fg=fg)
+
+    def save(self):
+        title = self.title_e.get().strip()
+        if not title:
+            self.error.config(text="마감 이름을 적어 주세요.")
+            return
+        self.dl.update(title=title, date=self.pick.isoformat(), group=self.group)
+        self.app.save_deadlines()
+        self.app.refresh()
+        self.destroy()
+
+    def delete(self):
+        if not messagebox.askyesno("삭제", f"마감 '{self.dl['title']}'을(를) 지울까요?", parent=self):
+            return
+        self.app.deadlines.remove(self.dl)
+        self.app.save_deadlines()
+        self.app.refresh()
+        self.destroy()
 
 
 class BackupDialog(Dialog):
@@ -362,6 +460,7 @@ class HelpDialog(Dialog):
                 ("KAMP > 데이터 EDA", "'KAMP' 묶음 아래 하위 할 일 (입력창에 'KAMP > '가 남아 연속 입력)"),
                 ("13:30 회의", "그날 일정 · '오후 3시 면담', '6시 반 저녁'도 돼요"),
                 ("미정 KAMP 회의", "시간 미정 일정 ('종일 MT'도 같음)"),
+                ("마감 10/20 KAMP 제출", "마감(디데이) 추가 · 일정표에서도 같은 방식"),
                 ("10/5 13:30 회의", "일정표 창에서: 날짜까지 한 번에"),
             ]),
             ("마우스", [
@@ -369,6 +468,7 @@ class HelpDialog(Dialog):
                 ("길게 누르고 끌기", "순서 바꾸기 (묶음은 하위까지 통째로)"),
                 ("우클릭", "묶기 · 묶음에서 빼기 · 마감/목표 연결 · 삭제"),
                 ("날짜 클릭", "달력 열기 → 날짜로 이동"),
+                ("일정 · 마감 클릭", "이름 · 날짜(· 시간 · 연결 묶음) 수정, 삭제"),
                 ("▸ 일정  ▸ 마감", "날짜 아래 버튼: 펼치기 / 접기"),
                 ("◢ (위젯 모드)", "오른쪽 아래를 끌어서 크기 조절"),
             ]),

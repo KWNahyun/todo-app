@@ -7,8 +7,8 @@ from tkinter import messagebox
 
 from .config import C, FONT, MONO, WEEKDAYS
 from .core import (
-    children, dday_colors, dday_text, elapsed, fmt, fmt_hm, new_task, over_estimate, parse_event, start,
-    stop, total_time,
+    children, dday_colors, dday_text, elapsed, fmt, fmt_hm, is_deadline_text, new_task, over_estimate,
+    parse_deadline, parse_event, start, stop, total_time,
 )
 from .dialogs import TaskDialog
 
@@ -424,6 +424,18 @@ class TaskListMixin:
     def add(self):
         text = "" if self._ph_on else self.entry.get().strip()
         if not text:
+            return
+        if self.has("deadlines") and is_deadline_text(text):  # '마감 10/20 KAMP 제출'
+            parsed, err = parse_deadline(text, None, self.today)
+            if err:
+                self.bell()
+                self.show_snack(err, undo=False)
+                return
+            day, title = parsed
+            self.entry.delete(0, "end")
+            self.add_deadline(day, title)
+            n = (day - self.today).days
+            self.show_snack(f"마감 '{title}' {day.month}/{day.day} ({dday_text(n)}) 추가했어요", undo=False)
             return
         event = parse_event(text) if self.has("events") else None
         if event:  # '13:30 회의' → 보고 있는 날짜의 일정

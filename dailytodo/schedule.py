@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from tkinter import ttk
 
 from .config import C, DAY_HEADS, FONT, MONO, WEEKDAYS
-from .core import event_dt, parse_dated_event
+from .core import dday_text, event_dt, is_deadline_text, parse_dated_event, parse_deadline
 from .widgets import CalendarPopup
 from .dialogs import EventDialog
 
@@ -42,9 +42,17 @@ class ScheduleWindow(tk.Toplevel):
         self.range_lbl.pack(side="right", padx=4)
         app._button(head, "‹", lambda: self.shift(-1), **nav).pack(side="right")
 
-        # 추가: [날짜 ▾] [13:30 회의        ] [추가]
+        # 추가: [일정|마감] [날짜 ▾] [13:30 회의        ] [추가]
         bar = tk.Frame(self, bg=C["bg"])
         bar.pack(fill="x", pady=(10, 2))
+        self.kind = "event"
+        self.kind_btns = {}
+        if app.has("deadlines"):
+            for key, label in (("event", "일정"), ("deadline", "마감")):
+                b = app._button(bar, label, lambda k=key: self.set_kind(k), font=(FONT, 9), padx=10)
+                b.pack(side="left", fill="y", padx=(0, 2))
+                self.kind_btns[key] = b
+            tk.Frame(bar, bg=C["bg"], width=s(6)).pack(side="left")
         self.date_btn = app._button(bar, "", self.pick_date, font=(FONT, 10))
         self.date_btn.pack(side="left", fill="y")
         self.entry = app._field(bar)
@@ -53,10 +61,9 @@ class ScheduleWindow(tk.Toplevel):
         app._button(bar, "추가", self.add, bg=C["moss"], fg=C["ink"], hover=C["moss_hi"],
                     activebackground=C["moss_hi"], activeforeground=C["ink"],
                     font=(FONT, 10, "bold"), padx=14).pack(side="left", fill="y")
-        self.msg = tk.Label(self, font=(FONT, 9), bg=C["bg"], fg=C["faint"], anchor="w",
-                            text="'13:30 회의'는 선택한 날짜에, '10/5 13:30 회의'처럼 날짜도 함께. 시간 없이 적으면 시간 미정. "
-                                 "날짜를 누르면 선택, 일정을 누르면 수정.")
+        self.msg = tk.Label(self, font=(FONT, 9), bg=C["bg"], fg=C["faint"], anchor="w")
         self.msg.pack(fill="x", pady=(0, 8))
+        self.set_kind("event")
 
         self.body = tk.Frame(self, bg=C["bg"])
         self.body.pack(fill="both", expand=True)
@@ -102,25 +109,63 @@ class ScheduleWindow(tk.Toplevel):
         CalendarPopup(self.app, self.date_btn, self.sel, self.select)
 
     # --- 추가 · 수정 ---
+    HINTS = {
+        "event": "'13:30 회의'는 선택한 날짜에, '10/5 13:30 회의'처럼 날짜도 함께. 시간 없이 적으면 시간 미정. "
+                 "날짜를 누르면 선택, 일정 · 마감을 누르면 수정.",
+        "deadline": "마감 이름만 적으면 선택한 날짜에, '10/20 KAMP 제출'처럼 날짜도 함께. "
+                    "'일정'에서도 '마감 10/20 …'으로 적으면 마감이 돼요.",
+    }
+
+    def set_kind(self, kind):
+        self.kind = kind
+        for key, b in self.kind_btns.items():
+            on = key == kind
+            b.config(bg=C["danger"] if on and key == "deadline" else C["moss"] if on else C["btn"],
+                     fg=C["ink"] if on else C["text"])
+            b.bind("<Leave>", lambda e, b=b, bg=b["bg"]: b.config(bg=bg))
+        self.msg.config(text=self.HINTS[kind], fg=C["faint"])
+        self.entry.focus_set()
+
+    def _reveal(self, day):
+        """추가한 날이 지금 보이는 기간 밖이면 그쪽으로 이동."""
+        self.sel = day
+        shown = [d for w in self.days() for d in w] if self.mode == "month" else self.days()
+        if day not in shown or (self.mode == "month" and day.month != self.anchor.month):
+            self.anchor = day
+
     def add(self):
-        parsed, err = parse_dated_event(self.entry.get(), self.sel, self.app.today)
+        text = self.entry.get()
+        a = self.app
+        if a.has("deadlines") and (self.kind == "deadline" or is_deadline_text(text)):
+            parsed, err = parse_deadline(text, self.sel, a.today)
+            if err:
+                self.msg.config(text=err, fg=C["danger"])
+                return
+            day, title = parsed
+            a.add_deadline(day, title)
+            self.entry.delete(0, "end")
+            self._reveal(day)
+            self.msg.config(text=f"마감 {day.month}/{day.day}({WEEKDAYS[day.weekday()]}) "
+                                 f"{dday_text((day - a.today).days)} {title} — 추가했어요", fg=C["moss"])
+            self.draw()
+            return
+        parsed, err = parse_dated_event(text, self.sel, a.today)
         if err:
             self.msg.config(text=err, fg=C["danger"])
             return
         day, hhmm, title = parsed
-        self.app.add_event(day, hhmm, title)
+        a.add_event(day, hhmm, title)
         self.entry.delete(0, "end")
-        self.sel = day
-        # 추가한 날이 지금 보이는 기간 밖이면 그쪽으로 이동
-        shown = [d for w in self.days() for d in w] if self.mode == "month" else self.days()
-        if day not in shown or (self.mode == "month" and day.month != self.anchor.month):
-            self.anchor = day
+        self._reveal(day)
         self.msg.config(text=f"{day.month}/{day.day}({WEEKDAYS[day.weekday()]}) {hhmm or '시간 미정'} {title} — 추가했어요",
                         fg=C["moss"])
         self.draw()
 
     def edit(self, d, ev):
         self.app._open_window("event_win", EventDialog, d, ev, anchor=self)
+
+    def edit_deadline(self, dl):
+        self.app.edit_deadline(dl, anchor=self)
 
     def delete(self, d, ev):
         self.app.delete_event(d, ev)
@@ -193,7 +238,7 @@ class ScheduleWindow(tk.Toplevel):
                          pady=3).pack(side="left", fill="y")
                 tk.Label(row, text=dl["title"], anchor="w", font=(FONT, 10), bg=C["card"],
                          fg=C["text"]).pack(side="left", fill="x", expand=True, padx=8)
-                a._bind_tree(row, "<Button-1>", lambda e: a.open_deadlines())
+                a._bind_tree(row, "<Button-1>", lambda e, dl=dl: self.edit_deadline(dl))
             for ev in evs:
                 dt = event_dt(d, ev)
                 past = past_day or (is_today and dt is not None and dt < now)
@@ -245,8 +290,8 @@ class ScheduleWindow(tk.Toplevel):
         for kind, x in items[:3]:
             if kind == "dl":
                 lb = tk.Label(cell, text=f"◆ {x['title']}", font=(FONT, 8, "bold"), bg=bg, fg=C["danger"],
-                              anchor="w", padx=4)
-                lb.bind("<Button-1>", lambda e: a.open_deadlines())
+                              anchor="w", padx=4, cursor="hand2")
+                lb.bind("<Button-1>", lambda e, dl=x: self.edit_deadline(dl))
             else:
                 lb = tk.Label(cell, text=f"{x['time'] or '·'} {x['title']}", font=(FONT, 8), anchor="w", padx=4,
                               bg=bg, fg=C["faint"] if d < a.today else C["text"], cursor="hand2")

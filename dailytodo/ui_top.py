@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from .config import C, DEADLINE_FILE, EVENT_FILE, FONT, GOAL_FILE, MONO, SECTIONS, WEEKDAYS
 from .core import children, dday_colors, dday_text, event_dt, fmt_hours, fmt_until, goal_seconds
 from .storage import save_json
-from .dialogs import EventDialog
+from .dialogs import EditDeadlineDialog, EventDialog
 from .schedule import ScheduleWindow
 
 
@@ -193,7 +193,8 @@ class TopMixin:
                     pace_s = f"{pace:.1f}".rstrip("0").rstrip(".")
                     sub = f"↳ {dl['group']} · 남은 {left}/{total}개 · 하루 {pace_s}개"
             self._strip_row(self.dday_box, dday_text(n), bg, fg, dl["title"],
-                            f"{d.month}/{d.day} ({WEEKDAYS[d.weekday()]})", sub, self.open_deadlines)
+                            f"{d.month}/{d.day} ({WEEKDAYS[d.weekday()]})", sub,
+                            lambda dl=dl: self.edit_deadline(dl))  # 누르면 그 마감 수정
         links = tk.Frame(self.dday_box, bg=C["bg"])
         links.pack(fill="x")
         more = f"{len(upcoming) - 3}개 더 · " if len(upcoming) > 3 else ""
@@ -261,6 +262,16 @@ class TopMixin:
         today = self.today.isoformat()
         linked = [d for d in self.deadlines if d.get("group") == title and d["date"] >= today]
         return min(linked, key=lambda d: d["date"]) if linked else None
+
+    def edit_deadline(self, dl, anchor=None):
+        self._open_window("dl_edit_win", EditDeadlineDialog, dl, anchor=anchor)
+
+    def add_deadline(self, day, title, group=None):
+        dl = {"id": uuid.uuid4().hex, "title": title, "date": day.isoformat(), "group": group}
+        self.deadlines.append(dl)
+        self.save_deadlines()
+        self.refresh()
+        return dl
 
     def link_deadline(self, dl, title):
         dl["group"] = None if dl.get("group") == title else title
