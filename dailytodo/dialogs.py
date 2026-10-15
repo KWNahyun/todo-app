@@ -6,17 +6,18 @@ import time
 import tkinter as tk
 import uuid
 from datetime import date, datetime, timedelta
-from tkinter import messagebox
+from pathlib import Path
+from tkinter import filedialog, messagebox
 
 from .config import (
-    BACKUP_DIR, C, DEFAULT_HOTKEYS, FEATURES, FONT, HOTKEY_ACTIONS, MONO, POMO_DEFAULTS, SECTIONS,
-    WEEKDAYS,
+    BACKUP_DIR, C, DATA_DIR, DEFAULT_HOTKEYS, FEATURES, FONT, HOTKEY_ACTIONS, LOCAL_DIR, MONO, POMO_DEFAULTS,
+    SECTIONS, WEEKDAYS,
 )
 from .core import (
     children, dday_colors, dday_text, elapsed, fmt, fmt_hm, fmt_hours, goal_seconds, parse_duration,
     parse_event, stop, total_time,
 )
-from .storage import make_backup, restore_backup
+from .storage import backup_folder, copy_data, has_data, make_backup, restore_backup, set_data_location
 from .widgets import CalendarPopup, CheckRow, Dialog, HabitBar, MoodPicker
 
 
@@ -347,6 +348,98 @@ class EditDeadlineDialog(Dialog):
         self.app.save_deadlines()
         self.app.refresh()
         self.destroy()
+
+
+def cloud_folders():
+    """이 PC 에서 찾은 클라우드 동기화 폴더 [(이름, 경로)]."""
+    found = []
+    for env, name in (("OneDrive", "OneDrive"), ("OneDriveConsumer", "OneDrive"), ("OneDriveCommercial", "OneDrive (회사)")):
+        p = os.environ.get(env)
+        if p and Path(p).is_dir() and all(Path(p) != q for _, q in found):
+            found.append((name, Path(p)))
+    for p in (Path.home() / "Google Drive", Path("G:/내 드라이브"), Path("G:/My Drive"), Path.home() / "Dropbox"):
+        if p.is_dir():
+            found.append(("Google Drive" if "Drive" in str(p) or "드라이브" in str(p) else "Dropbox", p))
+    return found
+
+
+class DataLocationDialog(Dialog):
+    """기록 · 백업 폴더를 OneDrive 같은 클라우드 폴더로 옮기기."""
+
+    def __init__(self, app):
+        super().__init__(app, "데이터 위치")
+        tk.Label(self, text="데이터 위치", font=(FONT, 13, "bold"), bg=C["bg"], fg=C["text"], anchor="w").pack(fill="x")
+        self.hint("할 일 · 일기 · 일정 · 기록장 등 모든 기록과 자동 백업이 이 폴더에 있어요.\n"
+                  "클라우드 폴더로 옮기면 노트북이 고장 나도 기록이 남고, 다른 PC 에서도 이어서 쓸 수 있어요.")
+        self.section("지금 쓰는 폴더")
+        row = tk.Frame(self, bg=C["bg"])
+        row.pack(fill="x")
+        is_local = DATA_DIR.resolve() == LOCAL_DIR.resolve()
+        tk.Label(row, text="이 PC (기본)" if is_local else "옮긴 폴더", font=(FONT, 8, "bold"),
+                 bg=C["btn"] if is_local else C["moss"], fg=C["muted"] if is_local else C["ink"],
+                 padx=6).pack(side="left")
+        tk.Label(row, text=str(DATA_DIR), font=(FONT, 9), bg=C["bg"], fg=C["text"], anchor="w").pack(
+            side="left", fill="x", expand=True, padx=8)
+        app._button(row, "폴더 열기", lambda: os.startfile(DATA_DIR), font=(FONT, 9), pady=2).pack(side="right")
+
+        self.section("옮기기")
+        for name, path in cloud_folders():
+            target = path / "DailyTodo"
+            self.primary(self, f"{name} 로 옮기기   ({target})", lambda t=target: self.move_to(t)).pack(
+                fill="x", pady=(0, 4))
+        app._button(self, "다른 폴더 고르기…  (Google Drive · Dropbox · USB 등)", self.choose,
+                    pady=4).pack(fill="x", pady=(0, 4))
+        if not is_local:
+            app._button(self, f"이 PC 기본 위치로 되돌리기   ({LOCAL_DIR})", lambda: self.move_to(LOCAL_DIR),
+                        pady=4).pack(fill="x")
+        self.hint("옮기면 기록과 백업을 복사한 뒤 앱이 다시 시작돼요. 원래 폴더의 파일은 지우지 않고 그대로 둬요.\n"
+                  "창 위치 · 단축키 같은 설정은 PC 마다 따로예요.")
+        warn = tk.Label(self, text="같은 폴더를 두 PC 에서 동시에 켜 두지 마세요 — 기록이 엇갈릴 수 있어요 (켜 두면 알려 줘요).",
+                        font=(FONT, 9), bg=C["bg"], fg=C["danger"], anchor="w", justify="left")
+        warn.pack(fill="x", pady=(8, 0))
+        btns = tk.Frame(self, bg=C["bg"])
+        btns.pack(fill="x", pady=(10, 0))
+        app._button(btns, "닫기", self.close, padx=14).pack(side="right")
+        self.finish()
+
+    def choose(self):
+        picked = filedialog.askdirectory(parent=self, title="기록을 둘 폴더 고르기 (클라우드 동기화 폴더 추천)")
+        if not picked:
+            return
+        folder = Path(picked)
+        # 'G:\내 드라이브' 처럼 큰 폴더를 고르면 그 안에 DailyTodo 폴더를 만들어 씀
+        if not has_data(folder) and folder.name.lower() != "dailytodo":
+            folder = folder / "DailyTodo"
+        self.move_to(folder)
+
+    def move_to(self, target):
+        a = self.app
+        target = Path(target)
+        if target.resolve() == DATA_DIR.resolve():
+            messagebox.showinfo("데이터 위치", "이미 이 폴더를 쓰고 있어요.", parent=self)
+            return
+        a.store.save()
+        a._save_diary()
+        a._flush_records()
+        if has_data(target):
+            ans = messagebox.askyesnocancel(
+                "이 폴더에 이미 기록이 있어요",
+                f"{target}\n에 Daily Todo 기록이 있어요 (다른 PC 에서 쓰던 기록일 수 있어요).\n\n"
+                "예: 그 폴더의 기록을 사용해요. 이 PC 의 지금 기록은 원래 위치에 그대로 남아요.\n"
+                "아니요: 이 PC 의 지금 기록으로 덮어써요. 그 폴더의 기록은 먼저 백업해 둬요.", parent=self)
+            if ans is None:
+                return
+            if ans is False:
+                backup_folder(target, f"덮어쓰기전-{datetime.now():%Y%m%d-%H%M%S}")
+                copy_data(DATA_DIR, target)
+        else:
+            if not messagebox.askyesno("데이터 옮기기", f"기록과 백업을\n{target}\n으로 옮기고 앱을 다시 시작할까요?",
+                                       parent=self):
+                return
+            copy_data(DATA_DIR, target)
+        set_data_location(target)
+        self.destroy()
+        a.restart()
 
 
 class BackupDialog(Dialog):

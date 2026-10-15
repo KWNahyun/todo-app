@@ -674,6 +674,72 @@ class CollectionsTest(AppCase):
 C_BG = "#f3e9d6"
 
 
+# ---------------------------------------------------------------- 데이터 위치 (OneDrive 등)
+class DataLocationTest(AppCase):
+    files = {"tasks.json": {iso(): [task("a", "원래 할 일")]}, "journal.json": {iso(): "일기"}}
+
+    def setUp(self):
+        super().setUp()
+        self.target = Path(tempfile.mkdtemp(prefix="dailytodo-cloud-")) / "DailyTodo"
+        self.restarted = []
+        self.app.restart = lambda: self.restarted.append(True)
+        self._ask = (dialogs.messagebox.askyesno, dialogs.messagebox.askyesnocancel)
+
+    def tearDown(self):
+        dialogs.messagebox.askyesno, dialogs.messagebox.askyesnocancel = self._ask
+        super().tearDown()
+
+    def test_storage_helpers(self):
+        st = mods["storage"]
+        self.assertFalse(st.has_data(self.target))
+        st.copy_data(DATA_DIR, self.target)
+        names = sorted(p.name for p in self.target.iterdir())
+        self.assertIn("tasks.json", names)
+        self.assertIn("backups", names)  # 자동 백업도 함께
+        self.assertNotIn("settings.json", names)  # PC 전용 설정은 안 옮김
+        self.assertTrue(st.has_data(self.target))
+        st.set_data_location(self.target)
+        loc = json.loads((DATA_DIR / "location.json").read_text(encoding="utf-8"))
+        self.assertEqual(Path(loc["data_dir"]), self.target.resolve())
+        st.set_data_location(None)
+        self.assertFalse((DATA_DIR / "location.json").exists())
+
+    def test_move_to_empty_folder(self):
+        dialogs.messagebox.askyesno = lambda *a, **k: True
+        d = todo.DataLocationDialog(self.app)
+        d.move_to(self.target)
+        self.assertEqual(self.restarted, [True])
+        self.assertEqual(json.loads((self.target / "journal.json").read_text(encoding="utf-8")), {iso(): "일기"})
+        self.assertTrue((DATA_DIR / "tasks.json").exists())  # 원래 폴더는 그대로
+
+    def test_existing_data_use_or_overwrite(self):
+        self.target.mkdir(parents=True)
+        (self.target / "tasks.json").write_text(json.dumps({iso(): [task("z", "다른 PC 할 일")]}, ensure_ascii=False),
+                                                encoding="utf-8")
+        # 예 = 그 폴더 기록 사용 → 덮어쓰지 않음
+        dialogs.messagebox.askyesnocancel = lambda *a, **k: True
+        todo.DataLocationDialog(self.app).move_to(self.target)
+        self.assertIn("다른 PC 할 일", (self.target / "tasks.json").read_text(encoding="utf-8"))
+        # 아니요 = 지금 기록으로 덮어쓰기 → 그 폴더 기록은 백업
+        dialogs.messagebox.askyesnocancel = lambda *a, **k: False
+        todo.DataLocationDialog(self.app).move_to(self.target)
+        self.assertIn("원래 할 일", (self.target / "tasks.json").read_text(encoding="utf-8"))
+        self.assertTrue(any(p.name.startswith("덮어쓰기전-") for p in (self.target / "backups").iterdir()))
+        # 취소 = 아무것도 안 함
+        dialogs.messagebox.askyesnocancel = lambda *a, **k: None
+        n = len(self.restarted)
+        todo.DataLocationDialog(self.app).move_to(self.target)
+        self.assertEqual(len(self.restarted), n)
+
+    def test_other_pc_warning(self):
+        a = self.app
+        (DATA_DIR / "in_use.json").write_text(json.dumps({"pc": "OTHER-PC", "time": time.time()}), encoding="utf-8")
+        a._check_data_location()
+        self.assertTrue(any("OTHER-PC" in n for n in self.notes))
+        self.assertEqual(json.loads((DATA_DIR / "in_use.json").read_text(encoding="utf-8"))["pc"],
+                         winapi.this_pc())  # 이제 이 PC 표시
+
+
 # ---------------------------------------------------------------- 백업
 class BackupTest(AppCase):
     files = {"tasks.json": {iso(): [task("a", "원래 할 일")]}, "journal.json": {iso(): "원래 일기"}}

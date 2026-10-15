@@ -2,11 +2,15 @@
 import json
 import os
 import re
+import shutil
 import time
 import zipfile
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from .config import BACKUP_DIR, BACKUP_KEEP_DAILY, BACKUP_KEEP_OTHER, DATA_FILE, SETTINGS_FILE
+from .config import (
+    BACKUP_DIR, BACKUP_KEEP_DAILY, BACKUP_KEEP_OTHER, DATA_FILE, LOCAL_DIR, LOCAL_ONLY, LOCATION_FILE,
+)
 from .core import new_task
 
 
@@ -28,19 +32,48 @@ def save_json(path, data):
     os.replace(tmp, path)
 
 
-def _data_files():
-    """백업 대상: 데이터 폴더의 .json (임시·깨진 파일 제외)."""
-    return [f for f in sorted(DATA_FILE.parent.glob("*.json")) if ".corrupt-" not in f.name]
+def _data_files(folder=None):
+    """백업 · 옮기기 대상: 데이터 폴더의 기록 .json (깨진 파일, 이 PC 전용 파일 제외)."""
+    folder = folder or DATA_FILE.parent
+    return [f for f in sorted(folder.glob("*.json")) if ".corrupt-" not in f.name and f.name not in LOCAL_ONLY]
+
+
+def has_data(folder):
+    """그 폴더에 Daily Todo 기록이 이미 있는지 (다른 PC 에서 쓰던 폴더 등)."""
+    return any((folder / n).exists() for n in ("tasks.json", "journal.json", "collections.json"))
+
+
+def copy_data(src, dst):
+    """기록 파일과 backups 폴더를 src → dst 로 복사 (src 는 그대로 둠)."""
+    dst.mkdir(parents=True, exist_ok=True)
+    for f in _data_files(src):
+        shutil.copy2(f, dst / f.name)
+    if (src / "backups").is_dir():
+        shutil.copytree(src / "backups", dst / "backups", dirs_exist_ok=True)
+
+
+def set_data_location(folder):
+    """데이터 폴더 위치를 이 PC 에 기억. None 이나 기본 폴더면 기본 위치로."""
+    if folder is None or Path(folder).resolve() == LOCAL_DIR.resolve():
+        LOCATION_FILE.unlink(missing_ok=True)
+    else:
+        save_json(LOCATION_FILE, {"data_dir": str(Path(folder).resolve())})
+
+
+def backup_folder(folder, name):
+    """folder 의 기록을 folder/backups/name.zip 으로."""
+    (folder / "backups").mkdir(parents=True, exist_ok=True)
+    path = folder / "backups" / f"{name}.zip"
+    tmp = path.with_suffix(".tmp")
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in _data_files(folder):
+            z.write(f, f.name)
+    os.replace(tmp, path)
+    return path
 
 
 def make_backup(name):
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    path = BACKUP_DIR / f"{name}.zip"
-    tmp = path.with_suffix(".tmp")
-    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in _data_files():
-            z.write(f, f.name)
-    os.replace(tmp, path)
+    path = backup_folder(BACKUP_DIR.parent, name)
     prune_backups()
     return path
 
@@ -66,9 +99,9 @@ def daily_backup(today):
 def restore_backup(path):
     """백업의 데이터 파일로 되돌림. 설정(settings.json)은 그대로 두고, 백업에 없던 데이터 파일은 지움."""
     with zipfile.ZipFile(path) as z:
-        names = {n for n in z.namelist() if n.endswith(".json") and "/" not in n and n != SETTINGS_FILE.name}
+        names = {n for n in z.namelist() if n.endswith(".json") and "/" not in n and n not in LOCAL_ONLY}
         for f in _data_files():
-            if f.name != SETTINGS_FILE.name and f.name not in names:
+            if f.name not in names:
                 f.unlink()
         for n in names:
             save_json(DATA_FILE.parent / n, json.loads(z.read(n).decode("utf-8")))

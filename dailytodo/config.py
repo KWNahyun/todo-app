@@ -1,39 +1,46 @@
 """경로 · 색 · 글꼴 · 기능 목록 같은 상수."""
+import json
 import os
 from pathlib import Path
 
-
-DATA_FILE = Path(os.environ.get("DAILY_TODO_DATA")
-                 or Path(os.environ.get("APPDATA", Path.home())) / "DailyTodo" / "tasks.json")
-
-
-SETTINGS_FILE = DATA_FILE.with_name("settings.json")
-
-
-JOURNAL_FILE = DATA_FILE.with_name("journal.json")
+# ---- 폴더
+# LOCAL_DIR: 이 PC 전용 (창 위치·단축키 같은 설정, 데이터 폴더 위치 메모)
+# DATA_DIR : 기록과 백업. 기본은 LOCAL_DIR 이고, OneDrive 등으로 옮기면 location.json 에 그 위치를 적어 둠
+# DAILY_TODO_DATA 환경 변수가 있으면 둘 다 그 폴더 (자동 테스트용)
+_ENV_DATA = os.environ.get("DAILY_TODO_DATA")
+LOCAL_DIR = Path(_ENV_DATA).parent if _ENV_DATA else Path(os.environ.get("APPDATA", Path.home())) / "DailyTodo"
+LOCATION_FILE = LOCAL_DIR / "location.json"  # {"data_dir": "C:\\Users\\..\\OneDrive\\DailyTodo"}
 
 
-DEADLINE_FILE = DATA_FILE.with_name("deadlines.json")
+def _chosen_data_dir():
+    """(실제로 쓸 데이터 폴더, 찾지 못한 옮긴 폴더 또는 None)."""
+    if _ENV_DATA:
+        return LOCAL_DIR, None
+    try:
+        chosen = Path(json.loads(LOCATION_FILE.read_text(encoding="utf-8"))["data_dir"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return LOCAL_DIR, None
+    if chosen.is_dir():
+        return chosen, None
+    return LOCAL_DIR, chosen  # 클라우드 드라이브가 아직 연결 안 됨 등 → 기본 위치로 열고 알려 줌
 
 
-MOOD_FILE = DATA_FILE.with_name("moods.json")      # {"YYYY-MM-DD": 1~5}
+DATA_DIR, MISSING_DATA_DIR = _chosen_data_dir()
+DATA_FILE = DATA_DIR / "tasks.json"
+SETTINGS_FILE = LOCAL_DIR / "settings.json"
+LOCK_FILE = DATA_DIR / "in_use.json"  # 어느 PC 에서 쓰고 있는지 (두 PC 동시 사용 경고용)
+LOCAL_ONLY = {SETTINGS_FILE.name, LOCATION_FILE.name, LOCK_FILE.name}  # 옮기기 · 백업에서 빼는 파일
 
-
-HABIT_FILE = DATA_FILE.with_name("habits.json")    # {"habits": [{id, name}], "log": {"YYYY-MM-DD": [id]}}
-
-
-GOAL_FILE = DATA_FILE.with_name("goals.json")      # [{id, title, target_hours, titles}]
-
-
-EVENT_FILE = DATA_FILE.with_name("events.json")    # {"YYYY-MM-DD": [{id, time "HH:MM", title, reminded}]}
-
-
-MANDALA_FILE = DATA_FILE.with_name("mandalart.json")  # {center, subs[8], actions[8][8], done[8][8]}
+JOURNAL_FILE = DATA_DIR / "journal.json"
+DEADLINE_FILE = DATA_DIR / "deadlines.json"
+MOOD_FILE = DATA_DIR / "moods.json"            # {"YYYY-MM-DD": 1~5}
+HABIT_FILE = DATA_DIR / "habits.json"          # {"habits": [{id, name}], "log": {"YYYY-MM-DD": [id]}}
+GOAL_FILE = DATA_DIR / "goals.json"            # [{id, title, target_hours, titles}]
+EVENT_FILE = DATA_DIR / "events.json"          # {"YYYY-MM-DD": [{id, time "HH:MM", title, reminded}]}
+MANDALA_FILE = DATA_DIR / "mandalart.json"     # {center, subs[8], actions[8][8], done[8][8]}
 # 기록장의 목록형 모음: {"bucket": [{id, title, tags, done, done_on, note, created}], ...}
-COLLECTIONS_FILE = DATA_FILE.with_name("collections.json")
-
-
-BACKUP_DIR = DATA_FILE.parent / "backups"  # 하루 한 번 자동: YYYY-MM-DD.zip (최근 14개 보관)
+COLLECTIONS_FILE = DATA_DIR / "collections.json"
+BACKUP_DIR = DATA_DIR / "backups"  # 하루 한 번 자동: YYYY-MM-DD.zip (최근 14개 보관)
 
 
 BACKUP_KEEP_DAILY, BACKUP_KEEP_OTHER = 14, 10

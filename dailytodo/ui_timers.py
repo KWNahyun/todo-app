@@ -60,6 +60,7 @@ class TimerMixin:
         if now - (self.settings.get("heartbeat") or 0) >= 60:
             self.settings["heartbeat"] = now
             self._save_settings()
+            self._touch_lock()  # 데이터 폴더에도 '이 PC 에서 쓰는 중' 표시
 
     def _task_day(self, t):
         return next(date.fromisoformat(k) for k, ts in self.store.data.items() if any(x is t for x in ts))

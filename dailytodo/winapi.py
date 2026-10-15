@@ -86,3 +86,16 @@ def already_running():
         u32.ShowWindow(hwnd, 9)  # SW_RESTORE
         u32.SetForegroundWindow(hwnd)
     return True
+
+
+def this_pc():
+    """이 컴퓨터 이름 (두 PC 동시 사용 경고에 표시)."""
+    return os.environ.get("COMPUTERNAME", "이 PC")
+
+
+def release_instance():
+    """다시 시작하기 전에 '이미 실행 중' 표시를 내려놓음 (새로 띄운 앱이 바로 닫히지 않게)."""
+    handle = globals().get("_instance_mutex")
+    if handle:
+        ctypes.windll.kernel32.CloseHandle(wintypes.HANDLE(handle))
+        globals()["_instance_mutex"] = None

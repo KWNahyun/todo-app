@@ -1,21 +1,24 @@
 """App 본체: 시작 · 데이터 불러오기 · 매 틱 갱신 · 창 열기 · 종료, 그리고 main()."""
 import ctypes
+import os
 import re
+import subprocess
+import sys
 import time
 import tkinter as tk
 from datetime import date, timedelta
 from tkinter import messagebox
 
 from .config import (
-    C, COLLECTIONS_FILE, DATA_FILE, DEADLINE_FILE, EVENT_FILE, GOAL_FILE, HABIT_FILE, JOURNAL_FILE,
-    MANDALA_FILE, MOOD_FILE, SETTINGS_FILE,
+    C, COLLECTIONS_FILE, DATA_FILE, DEADLINE_FILE, EVENT_FILE, GOAL_FILE, HABIT_FILE, JOURNAL_FILE, LOCK_FILE,
+    MANDALA_FILE, MISSING_DATA_DIR, MOOD_FILE, SETTINGS_FILE,
 )
 from .core import fmt, normalize_mandala, stop
 from .storage import Store, daily_backup, load_json, save_json
-from .winapi import already_running, resource
+from .winapi import already_running, release_instance, resource, this_pc
 from .dialogs import (
-    BackupDialog, DeadlineDialog, FeatureDialog, GoalDialog, HabitDialog, HelpDialog, ReviewDialog,
-    SettingsDialog,
+    BackupDialog, DataLocationDialog, DeadlineDialog, FeatureDialog, GoalDialog, HabitDialog, HelpDialog,
+    ReviewDialog, SettingsDialog,
 )
 from .mandala import MandalartWindow
 from .stats import StatsWindow
@@ -86,9 +89,55 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
         self._tick()
         self.register_hotkeys(startup=True)
         self._poll_hotkeys()
+        self.after(1000, self._check_data_location)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         # 위젯(바탕화면 고정) 모드에서 다른 곳을 클릭하면 다시 맨 뒤로
         self.bind("<FocusOut>", lambda e: self.after(150, self._back_if_unfocused))
+
+    # ---------- 데이터 위치 (OneDrive 등) ----------
+    def _check_data_location(self):
+        """시작할 때: 옮긴 데이터 폴더를 못 찾았는지, 다른 PC 에서도 켜져 있는지 알려 줌."""
+        if MISSING_DATA_DIR:
+            self.notify("데이터 폴더를 찾을 수 없어요",
+                        f"{MISSING_DATA_DIR} 이(가) 연결되지 않아 이 PC 의 기본 위치로 열었어요. "
+                        "클라우드 드라이브가 연결된 뒤 다시 켜 주세요.")
+            return
+        lock = load_json(LOCK_FILE)
+        if lock.get("pc") and lock["pc"] != this_pc() and time.time() - lock.get("time", 0) < 180:
+            self.notify(f"'{lock['pc']}' PC 에서도 켜져 있어요",
+                        "같은 기록을 두 PC 에서 동시에 쓰면 엇갈릴 수 있어요. 한쪽을 닫아 주세요.")
+        self._touch_lock()
+
+    def _touch_lock(self):
+        """이 PC 에서 쓰는 중이라는 표시 (1분마다 갱신)."""
+        if not MISSING_DATA_DIR:
+            try:
+                save_json(LOCK_FILE, {"pc": this_pc(), "time": time.time()})
+            except OSError:
+                pass
+
+    def _release_lock(self):
+        if load_json(LOCK_FILE).get("pc") == this_pc():
+            LOCK_FILE.unlink(missing_ok=True)
+
+    def open_data_location(self):
+        self._open_window("location_win", DataLocationDialog)
+
+    def restart(self):
+        """데이터 위치를 바꾼 뒤 새 위치로 다시 시작."""
+        self.store.save()
+        self._save_diary()
+        self._flush_records()
+        self.settings["heartbeat"] = None  # 켜 둔 타이머는 그대로 이어서 (자리 비움 확인 안 함)
+        self._save_settings()
+        self._release_lock()
+        release_instance()
+        if getattr(sys, "frozen", False):
+            args = [sys.executable]
+        else:
+            args = [sys.executable, os.path.abspath(sys.argv[0])]
+        subprocess.Popen(args, cwd=os.path.dirname(args[-1]))
+        self.shutdown()
 
     def load_data(self):
         """설정을 뺀 모든 데이터 파일을 읽음 (시작할 때, 백업에서 복원한 뒤)."""
@@ -308,6 +357,7 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
         self._flush_records()
         self.settings["heartbeat"] = None  # 정상 종료 — 다음 실행 때 '꺼져 있던 동안' 확인 안 함
         self._save_settings()
+        self._release_lock()
         self.shutdown()
 
     def shutdown(self):

@@ -300,6 +300,7 @@ class WindowMixin:
         for label, cmd in (("설정 (단축키 · 알림 · 표시)", self.open_settings),
                            ("기능 켜고 끄기", self.open_features),
                            ("백업 · 복원", self.open_backups),
+                           ("데이터 위치 (OneDrive 등)", self.open_data_location),
                            ("사용법 · 단축키", self.open_help)):
             m.add_command(label=label, command=cmd)
         return m
