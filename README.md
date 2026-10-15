@@ -15,8 +15,26 @@ python -m unittest discover -s tests -v
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-데이터: `%APPDATA%\DailyTodo\*.json` (자동 백업은 `backups\`).
-`DAILY_TODO_DATA` 환경 변수로 데이터 위치를 바꿀 수 있음 (테스트가 이걸 씀).
+## 데이터
+
+- 기록 · 자동 백업: 기본은 `%APPDATA%\DailyTodo\` — 앱의 `⋯ > 데이터 위치`에서 OneDrive 등으로 옮길 수 있음
+  (옮긴 위치는 `%APPDATA%\DailyTodo\location.json` 에 기억)
+- 이 PC 전용 설정(창 위치 · 단축키): 항상 `%APPDATA%\DailyTodo\settings.json`
+- `DAILY_TODO_DATA` 환경 변수가 있으면 둘 다 그 폴더 (테스트가 이걸 씀)
+
+## 버전 · 릴리스 (GitHub Actions)
+
+- `main` 에 올리면 **테스트** 워크플로가 Windows 에서 정적 검사 + 전체 테스트를 돌림
+- 릴리스: `dailytodo/__init__.py` 의 `__version__` 을 올리고 커밋한 뒤 같은 이름의 태그를 올리면
+  **릴리스** 워크플로가 exe 를 빌드해서 Releases 에 `DailyTodo-v1.2.3.zip` 을 첨부
+
+  ```powershell
+  git tag v1.2.3
+  git push origin v1.2.3
+  ```
+
+**다른 PC 에 설치:** Releases 에서 zip 을 받아 `%LOCALAPPDATA%\Programs\DailyTodo` 에 풀고 `DailyTodo.exe` 실행
+(바탕화면 바로 가기는 exe 를 우클릭 → 보내기 → 바탕 화면). 같은 기록을 쓰려면 `⋯ > 데이터 위치`에서 같은 OneDrive 폴더를 고름.
 
 ## 코드 구조
 

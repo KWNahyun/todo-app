@@ -1,0 +1,24 @@
+# main 에 올릴 때마다: 정적 검사 + 회귀 테스트 (Windows · Python 3.14)
+name: 테스트
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: 도구 설치
+        run: python -m pip install pyflakes
+      - name: 정적 검사 (pyflakes)
+        run: python -m pyflakes dailytodo tests todo.pyw
+      - name: 테스트
+        run: python -m unittest discover -s tests -v

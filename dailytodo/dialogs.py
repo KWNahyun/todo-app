@@ -17,6 +17,7 @@ from .core import (
     children, dday_colors, dday_text, elapsed, fmt, fmt_hm, fmt_hours, goal_seconds, parse_duration,
     parse_event, stop, total_time,
 )
+from . import __version__
 from .storage import backup_folder, copy_data, has_data, make_backup, restore_backup, set_data_location
 from .widgets import CalendarPopup, CheckRow, Dialog, HabitBar, MoodPicker
 
@@ -594,6 +595,8 @@ class HelpDialog(Dialog):
         btns.pack(fill="x", pady=(14, 0))
         app._button(btns, "단축키 바꾸기", lambda: (self.destroy(), app.open_settings()), font=(FONT, 9),
                     pady=2).pack(side="left")
+        tk.Label(btns, text=f"Daily Todo v{__version__}", font=(FONT, 8), bg=C["bg"], fg=C["faint"]).pack(
+            side="left", padx=10)
         self.primary(btns, "닫기", self.close).pack(side="right")
         self.finish()
 

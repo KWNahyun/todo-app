@@ -1,0 +1,42 @@
+# v1.2.3 같은 태그를 올리면: 테스트 → exe 빌드 → zip 을 GitHub Releases 에 첨부
+#   git tag v1.2.3 && git push origin v1.2.3
+name: 릴리스
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write  # Releases 만들기
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: 도구 설치
+        run: python -m pip install pyinstaller pyflakes
+      - name: 태그와 앱 버전이 같은지
+        shell: pwsh
+        run: |
+          $v = (python -c "import dailytodo; print(dailytodo.__version__)").Trim()
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "태그 ${{ github.ref_name }} 와 dailytodo/__init__.py 의 버전 $v 이 달라요" }
+      - name: 테스트
+        run: python -m unittest discover -s tests
+      - name: exe 빌드
+        run: python -m PyInstaller --noconfirm --clean --windowed --name DailyTodo --icon icon.ico --add-data "icon.ico;." todo.pyw
+      - name: zip 으로 묶기
+        shell: pwsh
+        run: Compress-Archive -Path dist/DailyTodo -DestinationPath "DailyTodo-${{ github.ref_name }}.zip"
+      - name: Releases 에 올리기
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" "DailyTodo-${{ github.ref_name }}.zip"
+          --title "Daily Todo ${{ github.ref_name }}" --generate-notes
