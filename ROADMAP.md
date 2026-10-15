@@ -1,4 +1,4 @@
-﻿# 로드맵
+# 로드맵
 
 지금: **v1.1.0** (2026-10-15, 데이트 일기) — Windows 데스크톱 위젯(Python · tkinter), 데이터는 OneDrive 의 JSON 파일.
 
