@@ -129,7 +129,7 @@ class TopMixin:
     def _redraw_schedule(self):
         win = getattr(self, "schedule_win", None)
         if win and win.winfo_exists():
-            self.after_idle(win.draw)
+            self.after_idle(self._draw_if_open, win)
 
     def open_schedule(self):
         win = getattr(self, "schedule_win", None)

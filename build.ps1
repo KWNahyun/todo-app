@@ -18,6 +18,10 @@ if ($LASTEXITCODE -ne 0) { throw '빌드 실패' }
 Write-Host '3/4 설치' -ForegroundColor Green
 # 데이터는 바뀔 때마다 저장되므로 바로 종료해도 안전 (정상 종료 창을 띄우지 않으려고)
 Get-Process DailyTodo -ErrorAction SilentlyContinue | Stop-Process
+# 시작프로그램 등으로 소스 버전(pythonw todo.pyw)이 떠 있으면 그것도 종료 (안 그러면 새 exe 가 '이미 실행 중'으로 바로 닫힘)
+Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" |
+    Where-Object { $_.CommandLine -like '*daily_todo\todo.pyw*' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 1
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\DailyTodo'
 if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }

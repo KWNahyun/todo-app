@@ -175,7 +175,13 @@ class App(TaskListMixin, TopMixin, JournalMixin, TimerMixin, WindowMixin, tk.Tk)
 
     def _redraw_stats(self):
         if self.stats_win and self.stats_win.winfo_exists():
-            self.after_idle(self.stats_win.draw)
+            self.after_idle(self._draw_if_open, self.stats_win)
+
+    @staticmethod
+    def _draw_if_open(win):
+        """나중에 다시 그리기로 예약했는데 그 사이 창이 닫혔으면 건너뜀."""
+        if win.winfo_exists():
+            win.draw()
 
     def open_features(self):
         self._open_window("feature_win", FeatureDialog)
