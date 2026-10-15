@@ -1,9 +1,9 @@
-# main 에 올릴 때마다: 정적 검사 + 회귀 테스트 (Windows · Python 3.14)
+# main · v2 에 올릴 때마다: v1 정적 검사 + 회귀 테스트 (Windows · Python 3.14), v2 동기화 핵심 테스트 (Node)
 name: 테스트
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
 
 jobs:
@@ -22,3 +22,22 @@ jobs:
         run: python -m pyflakes dailytodo tests todo.pyw
       - name: 테스트
         run: python -m unittest discover -s tests -v
+
+  core:
+    # v2 동기화 핵심 라이브러리 (이 job 은 v2 브랜치의 ci.yml 에만 있음)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/core
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: packages/core/package-lock.json
+      - run: npm ci
+      - name: 타입 검사
+        run: npm run typecheck
+      - name: 테스트
+        run: npm test

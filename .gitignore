@@ -4,3 +4,5 @@ dist/
 *.spec
 __pycache__/
 icon_preview.png
+# v2 (npm install 로 다시 받음)
+node_modules/

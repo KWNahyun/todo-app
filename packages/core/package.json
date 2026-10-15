@@ -1,0 +1,21 @@
+{
+  "name": "@dailytodo/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily Todo v2 동기화 핵심: 데이터 모델 · HLC · 변경 기록 · 합치기 · v1 가져오기 (화면 없음)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node-fs.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "import-check": "node scripts/import-check.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
