@@ -15,6 +15,7 @@ import { useApp, useData, useNow, useToday } from "../app/store.tsx";
 import { allSchemas } from "../app/collections.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { CollectionDesigner, CollectionView } from "./Collection.tsx";
+import { DiaryExport } from "./Export.tsx";
 import { Close, Left, Right, Trash } from "./icons.tsx";
 import { ConflictNotice, Lightbox, PhotoButton, PhotoField, Thumb } from "./photos.tsx";
 
@@ -217,6 +218,8 @@ function Diary() {
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted" style={{ fontSize: 13 }}>{daySummary(rep, day, Date.now())}</span>
+          <span style={{ flex: 1 }} />
+          <DiaryExport day={day} />
           <div className="seg" role="group" aria-label="보기">
             <button aria-pressed={view === "essay"} onClick={() => setView("essay")}>글</button>
             <button aria-pressed={view === "tl"} onClick={() => setView("tl")}>타임라인</button>

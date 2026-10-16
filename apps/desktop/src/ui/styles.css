@@ -459,3 +459,21 @@ select.field { appearance: auto; }
 .task.add-row input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 13.5px; }
 .chip.clickable { cursor: pointer; border: 0; }
 .chip.clickable:hover, .chip.clickable.on { background: var(--accent-soft); }
+
+/* ---------- 내보내기 · 인쇄 (D2) ---------- */
+.print-view { position: fixed; inset: 0; z-index: 70; background: var(--surface2); overflow-y: auto; padding: 0 16px 40px; }
+.print-bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 4px; background: var(--surface2); font-size: 13px; color: var(--muted); }
+.paper { max-width: 720px; margin: 8px auto; background: #fff; color: #1d1d1b; padding: 48px 56px; border-radius: 6px; box-shadow: var(--shadow); font: 15px/1.8 var(--font-display); }
+.paper h1 { font-size: 26px; margin: 0 0 24px; }
+.paper h2 { font-size: 17px; margin: 0 0 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+.paper h2 small { font-weight: 400; color: #666; }
+.paper .pday { margin-bottom: 26px; break-inside: avoid; }
+.paper .ptext { white-space: pre-wrap; margin: 0 0 8px; }
+.paper ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: #333; }
+@media print {
+  html.printing body { zoom: 1 !important; background: #fff; overflow: visible; }
+  html.printing #root, html.printing .no-print { display: none !important; }
+  html.printing .print-view { position: static; background: #fff; padding: 0; overflow: visible; }
+  html.printing .paper { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+  @page { margin: 18mm; }
+}

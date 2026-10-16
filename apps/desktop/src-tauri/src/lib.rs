@@ -242,6 +242,31 @@ fn ensure_config(app: &AppHandle) -> Res<()> {
     write_atomic(&p, &serde_json::to_string_pretty(&cfg).map_err(err)?)
 }
 
+/// 내보내기: 저장 창을 Rust 쪽에서 열고, 사용자가 고른 곳에만 씀 (화면 코드가 경로를 정하지 않게)
+/// → 저장한 경로 (취소하면 None)
+#[tauri::command]
+async fn save_export(app: AppHandle, name: String, ext: String, b64: String) -> Res<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let label = match ext.as_str() {
+        "md" => "Markdown",
+        "csv" => "CSV (엑셀)",
+        "json" => "JSON",
+        "png" => "그림 (PNG)",
+        _ => return Err(format!("내보낼 수 없는 형식: {ext}")),
+    };
+    let bytes = B64.decode(b64).map_err(err)?;
+    let picked = app
+        .dialog()
+        .file()
+        .set_file_name(format!("{name}.{ext}"))
+        .add_filter(label, &[ext.as_str()])
+        .blocking_save_file();
+    let Some(fp) = picked else { return Ok(None) };
+    let path = fp.into_path().map_err(err)?;
+    fs::write(&path, bytes).map_err(err)?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
 /// 마지막 키보드 · 마우스 입력 뒤 지난 초 (자리 비움 감지 — v1 winapi.idle_seconds)
 #[tauri::command]
 fn idle_seconds() -> u64 {
@@ -309,9 +334,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             vault_read, vault_write, vault_append, vault_list, vault_read_bytes, vault_write_bytes, read_image_file,
-            local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds
+            local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds, save_export
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

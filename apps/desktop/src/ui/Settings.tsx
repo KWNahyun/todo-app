@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { dayTotalsMs, importV1, type DeviceInfo, type V1Data, type V1Summary } from "@dailytodo/core";
 import { clock } from "../app/dates.ts";
 import { DENSITIES, FEATURES, FONTS, SIZES, THEMES, sharedSettings } from "../app/appearance.ts";
+import { ExportSection } from "./Export.tsx";
 import { useApp, useData, useSync } from "../app/store.tsx";
 import { DEFAULT_HOTKEYS, HOTKEY_LABELS, type HotkeyAction } from "../platform/index.ts";
 
@@ -300,6 +301,8 @@ export function Settings() {
       </section>
 
       <V1Import />
+
+      <ExportSection />
 
       <section>
         <h2>정보</h2>

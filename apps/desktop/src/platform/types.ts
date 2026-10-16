@@ -65,6 +65,8 @@ export interface Platform {
   idleSeconds(): Promise<number>;
   /** 전역 단축키를 이것들로 (이전 것은 모두 풂) → 등록 못 한 조합 (다른 프로그램이 쓰는 중 등) */
   setHotkeys(keys: Partial<Record<HotkeyAction, string>>, onPress: (a: HotkeyAction) => void): Promise<string[]>;
+  /** 파일로 내보내기: 저장 창 → 고른 곳에 저장 → 저장한 경로 (취소하면 null) */
+  saveExport(name: string, ext: "md" | "csv" | "json" | "png", bytes: Uint8Array): Promise<string | null>;
   /** 기본 브라우저로 주소 열기 (지도 등, https 만) */
   openUrl(url: string): Promise<void>;
   /** 위젯 창을 앞으로 */

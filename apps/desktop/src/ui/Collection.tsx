@@ -9,6 +9,7 @@ import { featureOn } from "../app/appearance.ts";
 import { shortDay } from "../app/dates.ts";
 import { parseTags } from "../app/records.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
+import { CollectionExport } from "./Export.tsx";
 import { Check, Close, Trash } from "./icons.tsx";
 import { ConflictNotice, PhotoField, Thumb } from "./photos.tsx";
 import { Field, Stars, useAutosave } from "./Records.tsx";
@@ -198,7 +199,10 @@ export function CollectionView({ s }: { s: Schema }) {
           </div>
         )}
         <input className="field" placeholder="검색" aria-label={`${s.label} 검색`} value={filter.q ?? ""} onChange={(e) => setFilter({ ...filter, q: e.target.value })} />
-        <span className="label">{list.length}개</span>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <span className="label">{list.length}개</span>
+          <CollectionExport s={s} />
+        </div>
         {list.map((x) => <Row key={x.id} s={s} r={x} on={x.id === sel} onClick={() => setSel(x.id)} />)}
         {!list.length && <div className="empty">{s.empty}</div>}
       </div>

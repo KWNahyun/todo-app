@@ -118,6 +118,16 @@ export function webPlatform(): Platform {
       if (screen) ch?.postMessage({ event: "open-screen", from: kind, payload: select ? `${screen}|${select}` : screen });
     },
     async setPin() {},
+    async saveExport(name, ext, bytes) {
+      // 브라우저 미리보기: 내려받기로
+      const type = { md: "text/markdown", csv: "text/csv", json: "application/json", png: "image/png" }[ext];
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }));
+      a.download = `${name}.${ext}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      return `${name}.${ext}`;
+    },
     async openUrl(url) {
       if (url.startsWith("https://")) window.open(url, "_blank", "noopener");
     },

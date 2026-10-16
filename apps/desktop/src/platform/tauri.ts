@@ -118,6 +118,9 @@ export function tauriPlatform(): Platform {
       }
       return failed;
     },
+    saveExport(name, ext, bytes) {
+      return invoke<string | null>("save_export", { name, ext, b64: toBase64(bytes) });
+    },
     async openUrl(url: string) {
       if (!url.startsWith("https://")) return;
       await openUrl(url);
