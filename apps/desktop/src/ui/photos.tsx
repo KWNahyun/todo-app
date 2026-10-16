@@ -31,9 +31,12 @@ export function usePhotoUrl(name: string | undefined): string | null | undefined
 
 export function Thumb({ photo, onClick, size = 88 }: { photo: Photo; onClick?: () => void; size?: number }) {
   const url = usePhotoUrl(photo.thumb);
+  const inner = url ? <img src={url} alt="" /> : <span className="faint">{url === null ? "받는 중" : ""}</span>;
+  // 누를 수 없을 땐 버튼이 아닌 그림 칸 (카드 버튼 안에 버튼이 겹치지 않게)
+  if (!onClick) return <span className="thumb" style={{ width: size, height: size, cursor: "inherit" }}>{inner}</span>;
   return (
     <button className="thumb" style={{ width: size, height: size }} onClick={onClick} aria-label="사진 크게 보기">
-      {url ? <img src={url} alt="" /> : <span className="faint">{url === null ? "받는 중" : ""}</span>}
+      {inner}
     </button>
   );
 }
