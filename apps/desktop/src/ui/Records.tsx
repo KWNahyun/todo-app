@@ -9,6 +9,7 @@ import { addDays, dayOf, hhmm, longDay, shortDay, toDate } from "../app/dates.ts
 import {
   DATE, MOODS, dateRecords, daySummary, diaryDays, journalOf, momentsOf, moodOf, parseTags, promptOf,
 } from "../app/records.ts";
+import { featureOn } from "../app/appearance.ts";
 import { savePhoto } from "../app/photo.ts";
 import { timeline } from "../app/selectors.ts";
 import { useApp, useData, useNow, useToday } from "../app/store.tsx";
@@ -211,7 +212,7 @@ function Diary() {
           </span>
           <button className="icon-btn" aria-label="다음 날" onClick={() => setDay(addDays(day, 1))}><Right /></button>
           {day !== today && <button className="btn" onClick={() => setDay(today)}>오늘로</button>}
-          <span style={{ marginLeft: "auto" }}><MoodPicker day={day} /></span>
+          {featureOn(rep, "mood") && <span style={{ marginLeft: "auto" }}><MoodPicker day={day} /></span>}
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted" style={{ fontSize: 13 }}>{daySummary(rep, day, Date.now())}</span>
@@ -349,12 +350,12 @@ function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
   );
 }
 
-function DateDiary() {
+function DateDiary({ select }: { select?: string }) {
   const { rep, actions } = useApp();
   useData();
   const today = useToday();
   const [q, setQ] = useState("");
-  const [sel, setSel] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(select ?? null);
   const list = dateRecords(rep, q);
   const r = sel ? rep.get<"record">(sel) : undefined;
   return (
@@ -373,18 +374,24 @@ function DateDiary() {
   );
 }
 
-export function Records() {
-  const [tab, setTab] = useState<"diary" | "date">("diary");
+export function Records({ initial = "diary", select }: { initial?: "diary" | "date"; select?: string }) {
+  const { rep } = useApp();
+  useData();
+  const [tab, setTab] = useState<"diary" | "date">(initial);
+  useEffect(() => setTab(initial), [initial]);
+  const date = featureOn(rep, "date");
   return (
     <>
       <div className="center-head">
         <h1>기록장</h1>
-        <div className="seg" role="group" aria-label="모음" style={{ marginLeft: "auto" }}>
-          <button aria-pressed={tab === "diary"} onClick={() => setTab("diary")}>다이어리</button>
-          <button aria-pressed={tab === "date"} onClick={() => setTab("date")}>데이트 일기</button>
-        </div>
+        {date && (
+          <div className="seg" role="group" aria-label="모음" style={{ marginLeft: "auto" }}>
+            <button aria-pressed={tab === "diary"} onClick={() => setTab("diary")}>다이어리</button>
+            <button aria-pressed={tab === "date"} onClick={() => setTab("date")}>데이트 일기</button>
+          </div>
+        )}
       </div>
-      {tab === "diary" ? <Diary /> : <DateDiary />}
+      {tab === "date" && date ? <DateDiary select={select} /> : <Diary />}
     </>
   );
 }

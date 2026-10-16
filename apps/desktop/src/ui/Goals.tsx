@@ -1,6 +1,7 @@
 /** 목표: 큰 목표(쌓인 시간 · 목표 시간) · 습관 관리 · 만다라트 (v1 GoalDialog · HabitDialog · mandala.py) */
 import { useEffect, useState } from "react";
 import { keyBetween, mandalaGrid, sortByOrder, type Goal } from "@dailytodo/core";
+import { featureOn } from "../app/appearance.ts";
 import { addDays, toDate } from "../app/dates.ts";
 import { goalMs, hoursText, periodDays } from "../app/stats.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
@@ -165,15 +166,15 @@ export function Goals() {
     <>
       <div className="center-head"><h1>목표</h1></div>
       <div className="stats-cols">
-        <section className="card">
+        {featureOn(rep, "goals") && <section className="card">
           <span className="label">큰 목표 · 마감 없이 시간을 쌓는 목표 (이름이 같은 할 일 · 묶음의 시간이 쌓여요)</span>
           {goals.map((g) => <GoalRow key={g.id} g={g} week={week} />)}
           {!goals.length && <div className="empty">예) 영어 100시간 — 목표를 만들고 같은 이름의 할 일에 타이머를 쓰면 쌓여요.</div>}
           <AddLine placeholder="새 목표 이름" onAdd={(title) => actions.create("goal", { title, linkedTitles: [], createdDay: today }, `목표 '${title}' 추가`)} />
-        </section>
-        <Habits today={today} />
+        </section>}
+        {featureOn(rep, "habits") && <Habits today={today} />}
       </div>
-      <Mandala today={today} />
+      {featureOn(rep, "mandala") && <Mandala today={today} />}
     </>
   );
 }

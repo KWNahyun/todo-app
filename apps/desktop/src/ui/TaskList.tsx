@@ -5,6 +5,7 @@
  */
 import { useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { isRunning, taskElapsedMs, type Task } from "@dailytodo/core";
+import { featureOn } from "../app/appearance.ts";
 import { clock, dayOf, daysBetween, ddayText } from "../app/dates.ts";
 import type { TaskNode } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
@@ -35,7 +36,7 @@ export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
   // 묶음에 연결된 가장 가까운 마감 → 디데이 (v1 의 마감 ↔ 묶음 연결)
   const todayStr = dayOf(new Date(now));
   const ddays = new Map<string, number>();
-  for (const d of rep.list("deadline", (x) => !!x.groupTitle && x.date >= todayStr)) {
+  for (const d of featureOn(rep, "deadlines") ? rep.list("deadline", (x) => !!x.groupTitle && x.date >= todayStr) : []) {
     const n = daysBetween(todayStr, d.date);
     if (!ddays.has(d.groupTitle!) || n < ddays.get(d.groupTitle!)!) ddays.set(d.groupTitle!, n);
   }

@@ -2,8 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import type { V1Data, VaultFs } from "@dailytodo/core";
-import type { Config, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
+import type { Config, HotkeyAction, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
 import { fromBase64, toBase64 } from "./base64.ts";
 
 class TauriVaultFs implements VaultFs {
@@ -102,6 +103,19 @@ export function tauriPlatform(): Platform {
       let ok = await isPermissionGranted();
       if (!ok) ok = (await requestPermission()) === "granted";
       if (ok) sendNotification({ title, body });
+    },
+    async setHotkeys(keys, onPress) {
+      await unregisterAll();
+      const failed: string[] = [];
+      for (const [action, acc] of Object.entries(keys)) {
+        if (!acc) continue;
+        try {
+          await register(acc, (e) => e.state === "Pressed" && onPress(action as HotkeyAction));
+        } catch {
+          failed.push(acc);
+        }
+      }
+      return failed;
     },
     idleSeconds: () => invoke<number>("idle_seconds"),
     showWidget: () => invoke<void>("show_widget"),

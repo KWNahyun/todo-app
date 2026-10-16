@@ -116,6 +116,9 @@ export function webPlatform(): Platform {
       window.open(`?view=main${screen ? `#${screen}` : ""}`, "dt-main");
     },
     async setPin() {},
+    async setHotkeys() {
+      return []; // 브라우저엔 전역 단축키가 없음
+    },
     async idleSeconds() {
       return 0;
     },

@@ -4,6 +4,7 @@
  * 숫자는 가장 큰 막대에만, 나머지는 마우스를 올리면 · '표로 보기'.
  */
 import { useState } from "react";
+import { featureOn } from "../app/appearance.ts";
 import { clock } from "../app/dates.ts";
 import { computeStats, hoursText, hm, periodLabel, shiftEnd, type Basis, type Period, type Stats as S } from "../app/stats.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
@@ -157,7 +158,7 @@ export function Stats() {
         </div>
 
         <div className="stack" style={{ gap: 14 }}>
-          {s.habits.length > 0 && (
+          {featureOn(rep, "habits") && s.habits.length > 0 && (
             <section className="card">
               <span className="label">습관</span>
               {s.habits.map((h) => (
@@ -171,7 +172,7 @@ export function Stats() {
               ))}
             </section>
           )}
-          {s.goals.length > 0 && (
+          {featureOn(rep, "goals") && s.goals.length > 0 && (
             <section className="card">
               <span className="label">큰 목표</span>
               {s.goals.map((g) => (

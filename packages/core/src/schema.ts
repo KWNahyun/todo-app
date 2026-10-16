@@ -132,8 +132,22 @@ export interface Mandala extends Base {
   done?: Record<string, Record<string, boolean>>;
 }
 
+/**
+ * 모든 기기가 같이 쓰는 설정 (설계 5.2): 테마 · 글꼴 · 켜 둔 기능 등. 하나만 씀 (id "settings").
+ * 창 위치 · 단축키 · 보관함 경로처럼 기기마다 다른 것은 기기 안 설정에.
+ */
+export interface Setting extends Base {
+  type: "setting";
+  theme?: string;
+  font?: string;
+  fontSize?: number;
+  density?: string;
+  /** 기능 켜고 끄기: 없으면 켜짐 */
+  features?: Record<string, boolean>;
+}
+
 export type Entity =
-  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala;
+  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala | Setting;
 
 export type TypeName = Entity["type"];
 export type EntityOf<T extends TypeName> = Extract<Entity, { type: T }>;

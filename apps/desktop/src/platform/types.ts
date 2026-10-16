@@ -5,7 +5,8 @@
 import type { V1Data, VaultFs } from "@dailytodo/core";
 
 export type WindowKind = "main" | "widget";
-export type ThemeName = "minimal" | "dark";
+/** 이 PC 에 마지막으로 쓴 테마 (같이 쓰는 설정이 우선 — app/appearance.ts) */
+export type ThemeName = string;
 /** 위젯 창: 보통 · 항상 위 · 바탕화면 고정 */
 export type PinMode = "normal" | "top" | "desktop";
 export type Screen = "today" | "schedule" | "records" | "stats" | "goals" | "settings";
@@ -29,7 +30,17 @@ export interface Config {
   longHours?: number;
   /** 이 시각 넘으면 '오늘 정리하기' 알림 (빈 값이면 끔, 기본 22:00) */
   reviewTime?: string;
+  /** 전역 단축키 (Tauri 가속기 문자열, 빈 값이면 끔) — 기본은 v1 과 같음 */
+  hotkeys?: Partial<Record<HotkeyAction, string>>;
 }
+
+export type HotkeyAction = "show" | "timer" | "review";
+export const DEFAULT_HOTKEYS: Record<HotkeyAction, string> = { show: "Ctrl+Alt+T", timer: "Ctrl+Alt+S", review: "Ctrl+Alt+R" };
+export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
+  show: "위젯 불러오기 + 바로 입력",
+  timer: "마지막 타이머 시작 / 정지",
+  review: "오늘 정리하기",
+};
 
 export interface Platform {
   kind: "tauri" | "web";
@@ -51,6 +62,8 @@ export interface Platform {
   readImageFile(path: string): Promise<Uint8Array>;
   /** 마지막 입력 뒤 지난 초 (자리 비움, 웹에선 0) */
   idleSeconds(): Promise<number>;
+  /** 전역 단축키를 이것들로 (이전 것은 모두 풂) → 등록 못 한 조합 (다른 프로그램이 쓰는 중 등) */
+  setHotkeys(keys: Partial<Record<HotkeyAction, string>>, onPress: (a: HotkeyAction) => void): Promise<string[]>;
   /** 위젯 창을 앞으로 */
   showWidget(): Promise<void>;
   /** OS 알림 (권한이 없으면 조용히 넘어감) */
@@ -59,4 +72,4 @@ export interface Platform {
   close(): Promise<void>;
 }
 
-export type PeerEvent = "vault-changed" | "config-changed" | "open-screen";
+export type PeerEvent = "vault-changed" | "config-changed" | "open-screen" | "open-review";

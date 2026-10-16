@@ -325,6 +325,11 @@ export class Actions {
     this.track(`습관 '${h.name}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)));
   }
 
+  /** 같이 쓰는 설정 (모양 · 기능 켜고 끄기) — 모든 기기에 동기화 */
+  setShared(fields: Record<string, unknown>, label = "설정 바꿈"): void {
+    this.track(label, ["settings"], () => this.rep.put("settings", "setting", fields));
+  }
+
   // ---------- 만다라트 ----------
 
   /** 만다라트 하나 (가져온 것이 있으면 그것) */

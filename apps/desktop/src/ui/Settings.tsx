@@ -2,7 +2,53 @@
 import { useEffect, useState } from "react";
 import { dayTotalsMs, importV1, type DeviceInfo, type V1Data, type V1Summary } from "@dailytodo/core";
 import { clock } from "../app/dates.ts";
-import { useApp, useSync } from "../app/store.tsx";
+import { DENSITIES, FEATURES, FONTS, SIZES, THEMES, sharedSettings } from "../app/appearance.ts";
+import { useApp, useData, useSync } from "../app/store.tsx";
+import { DEFAULT_HOTKEYS, HOTKEY_LABELS, type HotkeyAction } from "../platform/index.ts";
+
+/** 키 조합 → Tauri 가속기 문자열 ("Ctrl+Alt+T"). 수식키만 누른 중이면 null */
+function accelerator(e: KeyboardEvent): string | null {
+  if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return null;
+  const mods = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter(Boolean);
+  if (!mods.length) return null; // 수식키 없는 전역 단축키는 다른 프로그램 입력을 가로채서 막음
+  const k = e.code.startsWith("Key") ? e.code.slice(3) : e.code.startsWith("Digit") ? e.code.slice(5) : e.code;
+  return [...mods, k].join("+");
+}
+
+function Hotkeys() {
+  const { config, saveConfig } = useApp();
+  const [cap, setCap] = useState<HotkeyAction | null>(null);
+  const keys = { ...DEFAULT_HOTKEYS, ...config.hotkeys };
+  useEffect(() => {
+    if (!cap) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      if (e.key === "Escape") return setCap(null);
+      const acc = accelerator(e);
+      if (!acc) return;
+      void saveConfig({ hotkeys: { ...config.hotkeys, [cap]: acc } });
+      setCap(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [cap, config.hotkeys, saveConfig]);
+  return (
+    <section>
+      <h2>전역 단축키</h2>
+      <p>다른 프로그램을 쓰는 중에도 동작해요. 칸을 누른 뒤 원하는 키 조합을 눌러요 (Ctrl · Alt · Shift 중 하나 이상).</p>
+      {(Object.keys(HOTKEY_LABELS) as HotkeyAction[]).map((a) => (
+        <div key={a} className="row">
+          <span style={{ width: 210, fontSize: 14 }}>{HOTKEY_LABELS[a]}</span>
+          <button className={`keycap${cap === a ? " capturing" : ""}`} onClick={() => setCap(cap === a ? null : a)}>
+            {cap === a ? "키를 눌러요… (Esc 취소)" : keys[a] || "끔"}
+          </button>
+          {keys[a] && <button className="btn btn-ghost" onClick={() => void saveConfig({ hotkeys: { ...config.hotkeys, [a]: "" } })}>끄기</button>}
+          {keys[a] !== DEFAULT_HOTKEYS[a] && <button className="btn btn-ghost" onClick={() => void saveConfig({ hotkeys: { ...config.hotkeys, [a]: DEFAULT_HOTKEYS[a] } })}>기본값</button>}
+        </div>
+      ))}
+    </section>
+  );
+}
 
 function NumberSetting({ id, label, value, onSave, hint, min = 0 }: { id: string; label: string; value: number; onSave: (v: number) => void; hint?: string; min?: number }) {
   const [v, setV] = useState(String(value));
@@ -145,25 +191,61 @@ function V1Import() {
 }
 
 export function Settings() {
-  const { config, saveConfig, rep, engine } = useApp();
+  const { config, saveConfig, rep, engine, actions } = useApp();
+  useData();
   const sync = useSync();
+  const shared = sharedSettings(rep);
   const [root, setRoot] = useState(config.vaultRoot ?? "");
   const [name, setName] = useState(config.deviceName);
-  const theme = config.theme ?? "minimal";
+  const theme = shared.theme ?? config.theme ?? "minimal";
 
   return (
     <div className="settings">
       <section>
         <h2>모양</h2>
-        <div className="seg" role="group" aria-label="테마">
-          {(["minimal", "dark"] as const).map((t) => (
-            <button key={t} aria-pressed={theme === t} onClick={() => void saveConfig({ theme: t })}>
-              {t === "minimal" ? "미니멀" : "다크 숲"}
+        <p>모양과 켜 둔 기능은 이 보관함을 쓰는 모든 기기에 같이 적용돼요.</p>
+        <div className="theme-pick" role="group" aria-label="테마">
+          {THEMES.map((t) => (
+            <button key={t.id} aria-pressed={theme === t.id} onClick={() => { actions.setShared({ theme: t.id }, `테마: ${t.label}`); void saveConfig({ theme: t.id }); }}>
+              <i className="dot" style={{ background: t.swatch }} />{t.label}
             </button>
           ))}
         </div>
-        <p>숲 우드 · 파스텔 · 고대비와 글꼴 · 글자 크기는 다음 단계(P3)에서.</p>
+        <div className="row">
+          <span className="label" style={{ width: 60 }}>글꼴</span>
+          <div className="seg" role="group" aria-label="글꼴">
+            {FONTS.map((f) => <button key={f.id} aria-pressed={(shared.font ?? "sans") === f.id} onClick={() => actions.setShared({ font: f.id }, `글꼴: ${f.label}`)}>{f.label}</button>)}
+          </div>
+        </div>
+        <div className="row">
+          <span className="label" style={{ width: 60 }}>글자 크기</span>
+          <div className="seg" role="group" aria-label="글자 크기">
+            {SIZES.map((s) => <button key={s.id} aria-pressed={(shared.fontSize ?? 14) === s.id} onClick={() => actions.setShared({ fontSize: s.id }, `글자 크기: ${s.label}`)}>{s.label}</button>)}
+          </div>
+        </div>
+        <div className="row">
+          <span className="label" style={{ width: 60 }}>간격</span>
+          <div className="seg" role="group" aria-label="간격">
+            {DENSITIES.map((d) => <button key={d.id} aria-pressed={(shared.density ?? "normal") === d.id} onClick={() => actions.setShared({ density: d.id }, `간격: ${d.label}`)}>{d.label}</button>)}
+          </div>
+        </div>
       </section>
+
+      <section>
+        <h2>기능 켜고 끄기</h2>
+        <p>쓰지 않는 기능은 꺼 두면 메뉴와 화면에서 사라져요. 기록은 지워지지 않아요.</p>
+        <div className="toggles">
+          {FEATURES.map((f) => (
+            <label key={f.id}>
+              <input type="checkbox" checked={shared.features?.[f.id] !== false}
+                onChange={(e) => actions.setShared({ features: { [f.id]: e.target.checked } }, `${f.label} ${e.target.checked ? "켬" : "끔"}`)} />
+              {f.label}<small>{f.hint}</small>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <Hotkeys />
 
       <section>
         <h2>타이머 · 알림</h2>

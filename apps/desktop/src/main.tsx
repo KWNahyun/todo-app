@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@fontsource/gowun-batang/korean-400.css";
 import "@fontsource/gowun-batang/korean-700.css";
+import "@fontsource/gaegu/korean-400.css";
+import "@fontsource/gaegu/korean-700.css";
 import "./ui/styles.css";
 import { AppProvider } from "./app/store.tsx";
 import { getPlatform } from "./platform/index.ts";

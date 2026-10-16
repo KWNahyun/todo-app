@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MemoryFs, Replica, isRunning, taskElapsedMs } from "@dailytodo/core";
 import { Actions } from "./actions.ts";
+import { featureOn, sharedSettings } from "./appearance.ts";
 import { dayTree, progress, timeline } from "./selectors.ts";
 
 const DAY = "2026-10-15";
@@ -130,6 +131,20 @@ describe("동작 · 되돌리기", () => {
     expect(m().done?.["2"]?.["5"]).toBe(true);
     a.undo();
     expect(m().done?.["2"]?.["5"]).toBeFalsy(); // 처음엔 없던 칸이라 비움(null) — mandalaGrid 에선 false
+  });
+
+  it("같이 쓰는 설정: 기능 끄기 · 테마, 칸 단위로 합쳐짐 · 되돌리기", async () => {
+    const { rep, a } = await setup();
+    expect(featureOn(rep, "mood")).toBe(true); // 없으면 켜짐
+    a.setShared({ features: { mood: false } });
+    a.setShared({ theme: "wood" });
+    a.setShared({ features: { date: false } });
+    expect(featureOn(rep, "mood")).toBe(false);
+    expect(featureOn(rep, "date")).toBe(false);
+    expect(sharedSettings(rep).theme).toBe("wood");
+    a.undo();
+    expect(featureOn(rep, "date")).toBe(true);
+    expect(featureOn(rep, "mood")).toBe(false);
   });
 
   it("진행률 · 타임라인", async () => {

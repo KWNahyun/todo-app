@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { addDays, at, clock, dayOf, ddayText, longDay, until } from "../app/dates.ts";
 import { dueReminders, reminderKey } from "../app/reminders.ts";
+import { featureOn } from "../app/appearance.ts";
 import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upcomingDeadlines } from "../app/selectors.ts";
 import { useApp, useData, useNow, useToday } from "../app/store.tsx";
-import type { PinMode } from "../platform/index.ts";
+import { DEFAULT_HOTKEYS, type HotkeyAction, type PinMode } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right } from "./icons.tsx";
 import { EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
@@ -21,6 +22,7 @@ function useReminders() {
   const fired = useRef(new Set<string>());
   useEffect(() => {
     const check = () => {
+      if (!featureOn(rep, "events")) return;
       const now = Date.now();
       const today = dayOf(new Date(now));
       const events = [...eventsOf(rep, today), ...eventsOf(rep, addDays(today, 1))];
@@ -36,7 +38,7 @@ function useReminders() {
 }
 
 export function Widget() {
-  const { rep, platform, config, saveConfig } = useApp();
+  const { rep, platform, config, saveConfig, actions } = useApp();
   useData();
   useReminders();
   const today = useToday();
@@ -50,6 +52,43 @@ export function Widget() {
   useEffect(() => {
     if (follow) setDay(today);
   }, [today, follow]);
+  useEffect(() => platform.on("open-review", () => setReview(true)), [platform]);
+
+  // 전역 단축키 (v1 과 같은 세 가지) — 위젯 창이 맡음
+  const hotkeys = JSON.stringify({ ...DEFAULT_HOTKEYS, ...config.hotkeys });
+  useEffect(() => {
+    const onPress = (a: HotkeyAction) => {
+      if (a === "show") {
+        void platform.showWidget();
+        setTimeout(() => document.querySelector<HTMLInputElement>(".w-body .input input")?.focus(), 80);
+      } else if (a === "review") {
+        void platform.showWidget();
+        if (featureOn(rep, "review")) setReview(true);
+      } else {
+        const today = dayOf(new Date());
+        const mine = runningSessions(rep).filter((s) => s.deviceId === actions.pcId);
+        if (mine.length) {
+          const names = mine.map((s) => rep.get<"task">(s.taskId)?.title ?? "").join(", ");
+          for (const s of mine) actions.toggleTimer(s.taskId);
+          void platform.notify("타이머 정지", names);
+          return;
+        }
+        // 오늘 할 일 중 가장 최근에 잰 것 (완료 안 한 것)
+        const todays = new Map(rep.list("task", (t) => t.day === today && !t.done).map((t) => [t.id, t]));
+        const last = rep.list("session", (s) => todays.has(s.taskId)).sort((x, y) => y.start - x.start)[0];
+        if (last) {
+          actions.toggleTimer(last.taskId);
+          void platform.notify("타이머 시작", todays.get(last.taskId)!.title);
+        } else {
+          void platform.showWidget();
+          void platform.notify("다시 시작할 할 일이 없어요", "할 일 옆의 ▶ 를 눌러 주세요");
+        }
+      }
+    };
+    void platform.setHotkeys(JSON.parse(hotkeys), onPress).then((failed) => {
+      if (failed.length) setToast(`단축키를 등록하지 못했어요: ${failed.join(", ")} — 다른 프로그램이 쓰는 중이에요. 설정에서 바꿀 수 있어요`);
+    });
+  }, [hotkeys, platform, rep, actions]);
   useEffect(() => {
     if (!toast) return;
     const h = setTimeout(() => setToast(null), 5000);
@@ -69,7 +108,8 @@ export function Widget() {
   const { done, total } = progress(tree);
   const events = eventsOf(rep, day);
   const next = nextEvent(events, day, now);
-  const dl = upcomingDeadlines(rep, today, 1)[0];
+  const f = { events: featureOn(rep, "events"), deadlines: featureOn(rep, "deadlines"), mood: featureOn(rep, "mood"), habits: featureOn(rep, "habits"), review: featureOn(rep, "review") };
+  const dl = f.deadlines ? upcomingDeadlines(rep, today, 1)[0] : undefined;
 
   return (
     <div className="widget">
@@ -102,10 +142,12 @@ export function Widget() {
         </div>
 
         <div className="w-chips">
-          <span className="chip">
-            일정 {events.length}
-            {next?.time && <span className="num" style={{ color: "var(--accent)" }}>{next.time}</span>}
-          </span>
+          {f.events && (
+            <span className="chip">
+              일정 {events.length}
+              {next?.time && <span className="num" style={{ color: "var(--accent)" }}>{next.time}</span>}
+            </span>
+          )}
           {dl && (
             <span className="chip" title={dl.title}>
               마감 <span className={`tag ${dl.dday <= 3 ? "tag-danger" : dl.dday <= 7 ? "tag-sun" : "tag-accent"}`}>{ddayText(dl.dday)}</span>
@@ -114,7 +156,7 @@ export function Widget() {
           {day !== today && <button className="chip" style={{ cursor: "pointer" }} onClick={() => go(today)}>오늘로</button>}
         </div>
 
-        {events.length > 0 && <EventList day={day} now={now} limit={4} />}
+        {f.events && events.length > 0 && <EventList day={day} now={now} limit={4} />}
         {guard.pomo && <PomoBar pomo={guard.pomo} setPomo={guard.setPomo} />}
         <InputLine day={day} today={today} />
         <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
@@ -124,11 +166,11 @@ export function Widget() {
           <button className="sechead" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>
             <span>{logOpen ? "▾" : "▸"} 오늘의 기록</span>
           </button>
-          {logOpen && <MoodPicker day={day} />}
+          {logOpen && f.mood && <MoodPicker day={day} />}
         </div>
         {logOpen && (
           <>
-            <HabitChips day={day} />
+            {f.habits && <HabitChips day={day} />}
             <TimelinePreview day={day} now={now} limit={4} />
           </>
         )}
@@ -137,7 +179,7 @@ export function Widget() {
       <footer className="w-foot">
         <span>완료 {done}/{total} · 총 <span className="num">{clock(dayTotal(rep, tree, now))}</span></span>
         <span className="row" style={{ gap: 4 }}>
-          <button className="btn" onClick={() => setReview(true)}>정리하기</button>
+          {f.review && <button className="btn" onClick={() => setReview(true)}>정리하기</button>}
           <button className="btn btn-ghost" onClick={() => void platform.showMain("settings")}>설정</button>
         </span>
       </footer>

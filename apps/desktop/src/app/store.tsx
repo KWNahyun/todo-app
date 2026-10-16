@@ -8,8 +8,9 @@
  */
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Replica, VaultError, type LocalState } from "@dailytodo/core";
-import type { Config, Platform, ThemeName } from "../platform/index.ts";
+import type { Config, Platform } from "../platform/index.ts";
 import { Actions } from "./actions.ts";
+import { applyAppearance, featureOn, sharedSettings, type FeatureId } from "./appearance.ts";
 import { dayOf } from "./dates.ts";
 
 export interface SyncStatus {
@@ -153,8 +154,17 @@ export function useToday(): string {
   return dayOf(new Date(now));
 }
 
-export function applyTheme(theme: ThemeName | undefined) {
-  document.documentElement.dataset.theme = theme ?? "minimal";
+/** 같이 쓰는 설정(동기화)을 우선, 없으면 이 PC 에 마지막으로 쓴 테마 */
+function applyFrom(rep: Replica | null, config: Config) {
+  const s = rep ? sharedSettings(rep) : {};
+  applyAppearance({ ...s, theme: s.theme ?? config.theme });
+}
+
+/** 지금 보이는 기능 켜고 끄기 (바뀌면 다시 그림) */
+export function useFeature(f: FeatureId): boolean {
+  const { rep } = useApp();
+  useData();
+  return featureOn(rep, f);
 }
 
 async function boot(platform: Platform): Promise<Omit<AppValue, "saveConfig">> {
@@ -164,7 +174,7 @@ async function boot(platform: Platform): Promise<Omit<AppValue, "saveConfig">> {
     config.vaultRoot = await platform.defaultVaultRoot();
     await platform.writeConfig(config);
   }
-  applyTheme(config.theme);
+  applyFrom(null, config); // 보관함을 읽기 전에 이 PC 의 마지막 테마로 (번쩍임 없이)
   const deviceId = `${config.deviceBase}-${platform.window}`;
   let local: LocalState | undefined;
   try {
@@ -213,12 +223,16 @@ export function AppProvider({ platform, children }: { platform: Platform; childr
     return platform.on("config-changed", async () => {
       const c = await platform.readConfig();
       if (c.vaultRoot !== root) location.reload();
-      else {
-        applyTheme(c.theme);
-        setApp((a) => (a ? { ...a, config: c } : a));
-      }
+      else setApp((a) => (a ? { ...a, config: c } : a));
     });
   }, [root, platform]);
+
+  // 모양: 같이 쓰는 설정이 바뀔 때마다 (다른 기기에서 바꿔도)
+  useEffect(() => {
+    if (!app) return;
+    applyFrom(app.rep, app.config);
+    return app.rep.subscribe(() => applyFrom(app.rep, app.config));
+  }, [app]);
 
   if (fatal) return <div className="fatal" role="alert"><b>Daily Todo</b><p>{fatal}</p></div>;
   if (!app) return <div className="loading">불러오는 중…</div>;
@@ -232,7 +246,6 @@ export function AppProvider({ platform, children }: { platform: Platform; childr
       location.reload();
       return;
     }
-    applyTheme(next.theme);
     setApp({ ...app, config: next });
   };
 

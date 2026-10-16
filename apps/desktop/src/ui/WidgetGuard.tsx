@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { runningSessions, type Session } from "@dailytodo/core";
 import { addDays, clock, dayOf, hhmm, hoursMinutes, longDay, shortDay } from "../app/dates.ts";
 import { POMO_DEFAULTS, pomoTick, reviewData, sleepGap, type Pomo } from "../app/guard.ts";
+import { featureOn } from "../app/appearance.ts";
 import { journalOf } from "../app/records.ts";
 import { useApp, useData } from "../app/store.tsx";
 import { MoodPicker } from "./Records.tsx";
@@ -100,7 +101,7 @@ export function useGuard() {
       // 오늘 정리하기 알림 (하루 한 번)
       const rt = config.reviewTime ?? "22:00";
       const today = dayOf(new Date(now));
-      if (rt && hhmm(now) >= rt && LS.get("nudged") !== today && LS.get("reviewed") !== today) {
+      if (rt && featureOn(rep, "review") && hhmm(now) >= rt && LS.get("nudged") !== today && LS.get("reviewed") !== today) {
         LS.set("nudged", today);
         void platform.notify("오늘 하루를 정리해 볼까요?", "한 일 · 내일로 넘길 일 · 습관 · 기분 · 한 줄 회고");
       }
@@ -255,10 +256,8 @@ export function ReviewSheet({ day, onClose, onDone }: { day: string; onClose: ()
             {d.undone.length > 8 && <span className="faint" style={{ fontSize: 12 }}>외 {d.undone.length - 8}개는 그대로 둬요</span>}
           </>
         )}
-        <span className="label">습관</span>
-        <HabitChips day={day} />
-        <span className="label">기분</span>
-        <MoodPicker day={day} />
+        {featureOn(rep, "habits") && rep.list("habit").length > 0 && (<><span className="label">습관</span><HabitChips day={day} /></>)}
+        {featureOn(rep, "mood") && (<><span className="label">기분</span><MoodPicker day={day} /></>)}
         <label className="label" htmlFor="review-text">한 줄 회고</label>
         <textarea id="review-text" className="field" rows={4} value={text} onChange={(e) => setText(e.target.value)} />
         <div className="row" style={{ justifyContent: "flex-end" }}>
