@@ -157,8 +157,46 @@ export interface CollectionDef extends Base {
   order?: string;
 }
 
+/** 종이 다이어리 한 장 (그날, id "page-YYYY-MM-DD") */
+export interface Page extends Base {
+  type: "page";
+  day: Day;
+  paper?: "plain" | "lined" | "grid" | "dot";
+}
+
+/**
+ * 종이 다이어리 위의 것 하나 — 하나 = 항목 하나라 두 기기에서 같은 장을 꾸며도 합쳐짐.
+ * 좌표는 종이 기준(가로 600). x · y 로 옮기고 s(배율) · r(도) 로 키우고 돌림.
+ */
+export interface PageItem extends Base {
+  type: "pageItem";
+  day: Day;
+  kind: "stroke" | "sticker" | "photo" | "text";
+  x: number;
+  y: number;
+  s?: number;
+  r?: number;
+  z?: number;
+  /** stroke: "x,y,p;x,y,p…" (0.1 단위 정수, p 0~100 필압) */
+  pts?: string;
+  color?: string;
+  width?: number;
+  /** stroke: 형광펜 (반투명) */
+  marker?: boolean;
+  /** sticker 이름 */
+  sticker?: string;
+  photo?: Photo;
+  /** 기본 크기 (배율 1 일 때) */
+  w?: number;
+  h?: number;
+  text?: string;
+  font?: "hand" | "serif" | "sans";
+  size?: number;
+}
+
 export type Entity =
-  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala | Setting | CollectionDef;
+  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala | Setting
+  | CollectionDef | Page | PageItem;
 
 export type TypeName = Entity["type"];
 export type EntityOf<T extends TypeName> = Extract<Entity, { type: T }>;

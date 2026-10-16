@@ -342,6 +342,12 @@ export class Actions {
     return id;
   }
 
+  /** 여러 개를 한 번에 지우기 (지우개로 그은 획들 → 되돌리기 한 번에) */
+  removeMany(ids: string[], label: string): void {
+    const live = ids.filter((id) => this.rep.get(id));
+    if (live.length) this.track(label, live, () => live.forEach((id) => this.rep.remove(id)), true);
+  }
+
   /** 모음(완료 방식): 완료 표시 · 이룬 날 */
   setRecordDone(id: string, done: boolean, day: string): void {
     const r = this.rep.get<"record">(id);

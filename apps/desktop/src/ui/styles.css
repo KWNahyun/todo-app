@@ -477,3 +477,21 @@ select.field { appearance: auto; }
   html.printing .paper { box-shadow: none; margin: 0; padding: 0; max-width: none; }
   @page { margin: 18mm; }
 }
+
+/* ---------- 종이 다이어리 (D3) ---------- */
+.paper-wrap { display: grid; gap: 10px; }
+.paper-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.swatches { display: inline-flex; gap: 4px; }
+.swatches button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.sticker-panel { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.sticker-panel > button:not(.btn) { border: 0; background: transparent; border-radius: 8px; padding: 4px; cursor: pointer; }
+.sticker-panel > button:not(.btn):hover { background: var(--surface2); }
+.paper-stage { position: relative; max-width: 620px; width: 100%; }
+.paper-svg { display: block; width: 100%; height: auto; border-radius: 6px; box-shadow: var(--shadow); touch-action: none; user-select: none; background: #fffdf8; }
+.paper-svg.tool-pen, .paper-svg.tool-marker { cursor: crosshair; }
+.paper-svg.tool-eraser { cursor: cell; }
+.paper-svg.tool-text { cursor: text; }
+.paper-text { position: absolute; transform-origin: top left; min-width: 160px; min-height: 2.2em; border: 1.5px dashed var(--accent); background: rgba(255, 255, 255, .85); padding: 0 4px; line-height: 1.35; resize: both; outline: none; }
+.paper-sel { gap: 8px; }
+.print-page svg { width: 100%; height: auto; }

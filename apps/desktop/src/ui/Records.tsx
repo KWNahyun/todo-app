@@ -16,6 +16,7 @@ import { allSchemas } from "../app/collections.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { CollectionDesigner, CollectionView } from "./Collection.tsx";
 import { DiaryExport } from "./Export.tsx";
+import { PaperDiary } from "./Paper.tsx";
 import { Close, Left, Right, Trash } from "./icons.tsx";
 import { ConflictNotice, Lightbox, PhotoButton, PhotoField, Thumb } from "./photos.tsx";
 
@@ -200,7 +201,7 @@ function Diary() {
   useData();
   const today = useToday();
   const [day, setDay] = useState(today);
-  const [view, setView] = useState<"essay" | "tl">("tl");
+  const [view, setView] = useState<"essay" | "tl" | "paper">("tl");
   const [cal, setCal] = useState(false);
   return (
     <div className="records">
@@ -223,9 +224,10 @@ function Diary() {
           <div className="seg" role="group" aria-label="보기">
             <button aria-pressed={view === "essay"} onClick={() => setView("essay")}>글</button>
             <button aria-pressed={view === "tl"} onClick={() => setView("tl")}>타임라인</button>
+            <button aria-pressed={view === "paper"} onClick={() => setView("paper")}>꾸미기</button>
           </div>
         </div>
-        {view === "essay" ? <Essay key={day} day={day} /> : <Timeline day={day} />}
+        {view === "essay" ? <Essay key={day} day={day} /> : view === "paper" ? <PaperDiary day={day} /> : <Timeline day={day} />}
       </div>
     </div>
   );
