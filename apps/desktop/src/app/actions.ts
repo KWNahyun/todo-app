@@ -384,9 +384,24 @@ export class Actions {
     this.track(`모음 '${c.label}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)), true);
   }
 
+  /** 큰 목표 보관 · 다시 꺼내기 (보관한 목표는 목록 · 통계 · 연결 메뉴에서 빠짐, 쌓인 시간은 그대로) */
+  archiveGoal(id: string, archived: boolean, day: string): void {
+    const g = this.rep.get<"goal">(id);
+    if (!g || !!g.archived === archived) return;
+    this.track(archived ? `목표 '${g.title}' 보관` : `목표 '${g.title}' 다시 꺼냄`, [id], () =>
+      this.rep.update<"goal">(id, { archived, archivedOn: archived ? day : null }), archived);
+  }
+
   /** 이름으로 큰 목표 등록 (이미 있으면 false) */
   toGoal(title: string): boolean {
-    if (this.rep.list("goal", (g) => g.title === title).length) return false;
+    const same = this.rep.list("goal", (g) => g.title === title);
+    const archived = same.find((g) => g.archived);
+    if (archived && same.length === 1) {
+      // 보관해 둔 같은 이름 목표가 있으면 새로 만들지 않고 다시 꺼냄
+      this.archiveGoal(archived.id, false, "");
+      return true;
+    }
+    if (same.length) return false;
     this.create("goal", { title, linkedTitles: [] }, `목표 '${title}' 추가`);
     return true;
   }

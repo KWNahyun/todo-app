@@ -505,3 +505,6 @@ html.widget-window .w-top, html.widget-window .w-foot { background: color-mix(in
 .help code, .help kbd { font-family: var(--font-num); font-size: 12.5px; background: var(--surface2); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
 .help kbd { border: 1px solid var(--border); border-bottom-width: 2px; }
 .help .tips { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.archived { display: grid; gap: 4px; padding-top: 6px; }
+.archived-row { font-size: 13.5px; padding: 4px 0; border-top: 1px solid var(--border); flex-wrap: nowrap; }
+.archived-row .name { color: var(--muted); }

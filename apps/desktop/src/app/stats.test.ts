@@ -63,5 +63,7 @@ describe("통계", () => {
     expect(s.goals).toEqual([{ id: goal, title: "영어", period: H, total: 3 * H, targetMs: 100 * H }]);
     expect(s.estimate).toEqual({ count: 1, within: 1 });
     expect(goalMs(rep, rep.get<"goal">(goal)!, null, 0)).toBe(3 * H);
+    rep.update<"goal">(goal, { archived: true });
+    expect(computeStats(rep, "week", "2026-10-16", "time", 0).goals).toEqual([]); // 보관한 목표는 통계에서 빠짐
   });
 });

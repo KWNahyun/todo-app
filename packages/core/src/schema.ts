@@ -68,6 +68,9 @@ export interface Goal extends Base {
   targetHours?: number | null;
   linkedTitles?: string[];
   createdDay?: Day;
+  /** 더 이상 진행하지 않는 목표 — 목록 · 통계에서 숨기고 기록은 남김 */
+  archived?: boolean;
+  archivedOn?: Day | null;
 }
 
 export interface Habit extends Base {

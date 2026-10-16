@@ -138,7 +138,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: P
         });
       }
       if (featureOn(rep, "goals")) {
-        const goals = rep.list("goal");
+        const goals = rep.list("goal", (g) => !g.archived);
         items.push({
           label: "목표에 연결",
           sub: [

@@ -162,7 +162,7 @@ export function computeStats(rep: Replica, period: Period, end: string, basis: B
     });
 
   const upTo = new Set(rep.list("task", (t) => t.day <= days[days.length - 1]!).map((t) => t.day));
-  const goals = rep.list("goal").map((g) => ({
+  const goals = rep.list("goal", (g) => !g.archived).map((g) => ({
     id: g.id,
     title: g.title,
     period: goalMs(rep, g, daySet, now),

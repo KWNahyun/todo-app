@@ -180,6 +180,17 @@ describe("동작 · 되돌리기", () => {
     expect(rep.get<"goal">(g)!.linkedTitles).toEqual([]);
   });
 
+  it("큰 목표 보관 · 다시 꺼내기 (같은 이름으로 다시 등록해도 꺼냄)", async () => {
+    const { rep, a } = await setup();
+    a.toGoal("영어");
+    const g = rep.list("goal")[0]!;
+    a.archiveGoal(g.id, true, DAY);
+    expect(rep.get<"goal">(g.id)).toMatchObject({ archived: true, archivedOn: DAY });
+    expect(a.toGoal("영어")).toBe(true);
+    expect(rep.list("goal")).toHaveLength(1);
+    expect(rep.get<"goal">(g.id)).toMatchObject({ archived: false, archivedOn: null });
+  });
+
   it("진행률 · 타임라인", async () => {
     const { rep, a, clock } = await setup();
     a.add("KAMP > 모델링", DAY);

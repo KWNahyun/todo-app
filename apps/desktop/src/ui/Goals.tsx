@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { keyBetween, mandalaGrid, sortByOrder, type Goal } from "@dailytodo/core";
 import { featureOn } from "../app/appearance.ts";
-import { addDays, toDate } from "../app/dates.ts";
+import { addDays, shortDay, toDate } from "../app/dates.ts";
 import { goalMs, hoursText, periodDays } from "../app/stats.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
 import { Trash } from "./icons.tsx";
@@ -35,7 +35,32 @@ function Inline({ value, onSave, label, className = "inline", inputMode, placeho
   );
 }
 
-function GoalRow({ g, week }: { g: Goal; week: Set<string> }) {
+/** 보관한 목표: 이름 · 쌓인 시간 · 보관한 날만, 다시 꺼내기 · 지우기 */
+function ArchivedGoals({ goals, today }: { goals: Goal[]; today: string }) {
+  const { rep, actions } = useApp();
+  const [open, setOpen] = useState(false);
+  if (!goals.length) return null;
+  return (
+    <div className="archived">
+      <button className="sechead" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? "▾" : "▸"} 보관한 목표 {goals.length}개
+      </button>
+      {open && goals.map((g) => (
+        <div key={g.id} className="row archived-row">
+          <span className="name">{g.title}</span>
+          <span className="muted num" style={{ fontSize: 12.5 }}>
+            누적 {hoursText(goalMs(rep, g, null, Date.now()))}{g.archivedOn ? ` · ${shortDay(g.archivedOn)} 보관` : ""}
+          </span>
+          <span style={{ flex: 1 }} />
+          <button className="btn" onClick={() => actions.archiveGoal(g.id, false, today)}>다시 꺼내기</button>
+          <button className="icon-btn" aria-label="목표 지우기" onClick={() => actions.remove(g.id, `목표 '${g.title}' 지움`)}><Trash /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GoalRow({ g, week, today }: { g: Goal; week: Set<string>; today: string }) {
   const { rep, actions } = useApp();
   const now = Date.now();
   const total = goalMs(rep, g, null, now);
@@ -45,6 +70,7 @@ function GoalRow({ g, week }: { g: Goal; week: Set<string> }) {
     <div className="goal">
       <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
         <Inline value={g.title} label="목표 이름" className="inline strong" onSave={(v) => v.trim() && actions.update(g.id, { title: v.trim() }, "목표 이름 고침")} />
+        <button className="btn btn-ghost" title="더 이상 진행하지 않는 목표 — 목록 · 통계에서 숨기고 쌓인 시간은 남겨요" onClick={() => actions.archiveGoal(g.id, true, today)}>보관</button>
         <button className="icon-btn" aria-label="목표 지우기" onClick={() => actions.remove(g.id, `목표 '${g.title}' 지움`)}><Trash /></button>
       </div>
       <div className="muted num" style={{ fontSize: 13 }}>
@@ -161,16 +187,19 @@ export function Goals() {
   useData();
   const today = useToday();
   const week = new Set(periodDays("week", today));
-  const goals = rep.list("goal").sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const all = rep.list("goal").sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const goals = all.filter((g) => !g.archived);
+  const archived = all.filter((g) => g.archived).sort((a, b) => ((a.archivedOn ?? "") < (b.archivedOn ?? "") ? 1 : -1));
   return (
     <>
       <div className="center-head"><h1>목표</h1></div>
       <div className="stats-cols">
         {featureOn(rep, "goals") && <section className="card">
           <span className="label">큰 목표 · 마감 없이 시간을 쌓는 목표 (이름이 같은 할 일 · 묶음의 시간이 쌓여요)</span>
-          {goals.map((g) => <GoalRow key={g.id} g={g} week={week} />)}
+          {goals.map((g) => <GoalRow key={g.id} g={g} week={week} today={today} />)}
           {!goals.length && <div className="empty">예) 영어 100시간 — 목표를 만들고 같은 이름의 할 일에 타이머를 쓰면 쌓여요.</div>}
-          <AddLine placeholder="새 목표 이름" onAdd={(title) => actions.create("goal", { title, linkedTitles: [], createdDay: today }, `목표 '${title}' 추가`)} />
+          <AddLine placeholder="새 목표 이름" onAdd={(title) => actions.toGoal(title)} />
+          <ArchivedGoals goals={archived} today={today} />
         </section>}
         {featureOn(rep, "habits") && <Habits today={today} />}
       </div>
