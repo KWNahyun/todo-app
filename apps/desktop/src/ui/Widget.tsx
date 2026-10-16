@@ -1,6 +1,6 @@
 /** 위젯: 바탕화면에 늘 떠 있는 작은 창. 오늘만 보여 주고 나머지는 메인 창으로 (설계 3장) */
 import { useEffect, useRef, useState } from "react";
-import { addDays, at, clock, dayOf, ddayText, longDay, until } from "../app/dates.ts";
+import { addDays, at, clock, dayOf, ddayText, longDay, shortDay, until } from "../app/dates.ts";
 import { dueReminders, reminderKey } from "../app/reminders.ts";
 import { featureOn } from "../app/appearance.ts";
 import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upcomingDeadlines } from "../app/selectors.ts";
@@ -48,6 +48,7 @@ export function Widget() {
   const [cal, setCal] = useState(false);
   const [review, setReview] = useState(false);
   const [showDl, setShowDl] = useState(false);
+  const [showUp, setShowUp] = useState(false);
   /** 위젯은 좁아서 상세는 메인 창의 상세 패널로 */
   const openDetail = (id: string) => void platform.showMain("today", id);
   const [toast, setToast] = useState<string | null>(null);
@@ -113,6 +114,11 @@ export function Widget() {
   const next = nextEvent(events, day, now);
   const f = { events: featureOn(rep, "events"), deadlines: featureOn(rep, "deadlines"), mood: featureOn(rep, "mood"), habits: featureOn(rep, "habits"), review: featureOn(rep, "review") };
   const dl = f.deadlines ? upcomingDeadlines(rep, today, 1)[0] : undefined;
+  // 보고 있는 날 다음 날부터 7일 (그날 일정은 아래 목록에 이미 있음)
+  const upEnd = addDays(day, 7);
+  const upcoming = showUp
+    ? rep.list("event", (e) => e.day > day && e.day <= upEnd).sort((a, b) => (a.day + (a.time ?? "")).localeCompare(b.day + (b.time ?? "")))
+    : [];
 
   return (
     <div className="widget">
@@ -146,7 +152,7 @@ export function Widget() {
 
         <div className="w-chips">
           {f.events && (
-            <button className="chip clickable" title="일정표 열기" onClick={() => void platform.showMain("schedule")}>
+            <button className={`chip clickable${showUp ? " on" : ""}`} title="다가오는 일정 펼치기" aria-expanded={showUp} onClick={() => setShowUp(!showUp)}>
               일정 {events.length}
               {next?.time && <span className="num" style={{ color: "var(--accent)" }}>{next.time}</span>}
             </button>
@@ -159,6 +165,18 @@ export function Widget() {
           {day !== today && <button className="chip" style={{ cursor: "pointer" }} onClick={() => go(today)}>오늘로</button>}
         </div>
 
+        {showUp && f.events && (
+          <div className="card">
+            <span className="label">앞으로 7일 일정</span>
+            {upcoming.length ? upcoming.map((e) => (
+              <div key={e.id} className="ev clickable" onClick={() => openDetail(e.id)}>
+                <span className="when num" style={{ width: 64 }}>{shortDay(e.day)}</span>
+                <span className="what">{e.time ? `${e.time} ` : ""}{e.title}</span>
+              </div>
+            )) : <div className="empty">앞으로 7일 동안 일정이 없어요</div>}
+            <button className="btn btn-ghost" style={{ justifySelf: "start" }} onClick={() => void platform.showMain("schedule")}>일정표 열기</button>
+          </div>
+        )}
         {showDl && f.deadlines && <div className="card"><DeadlineList today={today} onSelect={openDetail} /></div>}
         {f.events && events.length > 0 && <EventList day={day} now={now} limit={4} onSelect={openDetail} />}
         {guard.pomo && <PomoBar pomo={guard.pomo} setPomo={guard.setPomo} />}
