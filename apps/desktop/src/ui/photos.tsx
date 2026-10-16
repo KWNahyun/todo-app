@@ -1,9 +1,9 @@
 /** 사진 보이기 · 고르기 · 크게 보기 (보관함 blobs → 화면) */
 import { useEffect, useRef, useState } from "react";
-import { getBlob, type Photo } from "@dailytodo/core";
+import { getBlob, type Photo, type RecordItem } from "@dailytodo/core";
 import { savePhoto } from "../app/photo.ts";
 import { useApp } from "../app/store.tsx";
-import { Close } from "./icons.tsx";
+import { Close, Trash } from "./icons.tsx";
 
 /** 이름 → 화면용 주소 (한 번 읽은 건 기억) */
 const urls = new Map<string, Promise<string | null>>();
@@ -121,5 +121,63 @@ export function ConflictNotice({ id, field, current }: { id: string; field: stri
         </>
       )}
     </div>
+  );
+}
+
+/** v1 기록장에 붙여 둔 사진 파일(경로) → 줄여서 보관함으로 가져오기 (가져오면 경로는 지움) */
+export function V1PhotoImport({ recordId, file, photos }: { recordId: string; file: string; photos: Photo[] }) {
+  const { actions, platform, rep } = useApp();
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = async () => {
+    try {
+      setMsg("가져오는 중…");
+      const bytes = await platform.readImageFile(file);
+      const p = await savePhoto(rep.fs, new Blob([bytes as Uint8Array<ArrayBuffer>]));
+      actions.update(recordId, { f: { photos: [...photos, p], file: null } }, "v1 사진 가져옴");
+      setMsg(null);
+    } catch (e) {
+      setMsg(`가져오지 못했어요: ${String(e)}`);
+    }
+  };
+  return (
+    <div className="notice">
+      <span>v1 에 붙여 둔 사진: <span className="num" style={{ fontSize: 12 }}>{file}</span></span>
+      <div className="row">
+        <button className="btn" onClick={() => void run()}>이 사진 가져오기</button>
+        {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** 모음 항목의 사진 칸: 여러 장 넣기 · 대표 바꾸기 · 빼기 · 크게 보기 + v1 사진 가져오기 */
+export function PhotoField({ r, label = "사진" }: { r: RecordItem; label?: string }) {
+  const { actions } = useApp();
+  const photos = r.f?.photos ?? [];
+  const [lb, setLb] = useState<number | null>(null);
+  const set = (ps: Photo[], what: string) => actions.update(r.id, { f: { photos: ps } }, what);
+  const v1File = typeof r.f?.file === "string" && r.f.file ? r.f.file : null;
+  return (
+    <>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span className="label">{label} {photos.length ? `${photos.length}장 · 첫 장이 대표` : ""}</span>
+        <PhotoButton label="사진 넣기" onAdd={(ps) => set([...photos, ...ps], `사진 ${ps.length}장 넣음`)} />
+      </div>
+      {photos.length > 0 && (
+        <div className="gallery">
+          {photos.map((p, i) => (
+            <span key={p.id} className="thumb-wrap">
+              <Thumb photo={p} size={120} onClick={() => setLb(i)} />
+              <span className="ops">
+                {i > 0 && <button className="btn" onClick={() => set([p, ...photos.filter((x) => x !== p)], "대표 사진 바꿈")}>대표로</button>}
+                <button className="btn" aria-label="사진 빼기" onClick={() => set(photos.filter((x) => x !== p), "사진 뺌")}><Trash /></button>
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+      {v1File && <V1PhotoImport recordId={r.id} file={v1File} photos={photos} />}
+      {lb != null && <Lightbox photos={photos} index={lb} onClose={() => setLb(null)} />}
+    </>
   );
 }

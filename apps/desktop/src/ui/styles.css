@@ -428,3 +428,34 @@ table.cmp td.n { text-align: right; font-variant-numeric: tabular-nums; }
 .palette-list small { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .nav .k-hint { font-size: 12.5px; color: var(--muted); }
 :root[data-theme="contrast"] .snack button { color: var(--bg); text-decoration: underline; }
+
+/* ---------- 기록장 모음 (D1) ---------- */
+.rec-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+.rec-tabs button { border: 0; background: var(--surface2); color: var(--muted); padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+.rec-tabs button.on { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.rec-tabs button.add { background: transparent; border: 1px dashed var(--guide); color: var(--accent); }
+.col-row { display: flex !important; align-items: center; gap: 10px; cursor: pointer; }
+.col-row .col-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.col-row .col-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-row.done .col-text b { color: var(--faint); text-decoration: line-through; }
+.col-row.done .check { background: var(--accent); border-color: var(--accent); }
+.col-row.done .check svg { opacity: 1; }
+.seg.wrap { flex-wrap: wrap; }
+select.field { appearance: auto; }
+
+/* ---------- 우클릭 메뉴 · 하위 추가 · 칩 (사용자 요청) ---------- */
+.ctx { position: fixed; z-index: 60; min-width: 200px; max-width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; display: grid; }
+.ctx hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+.ctx-item { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: center; width: 100%; border: 0; background: transparent; padding: 6px 8px; border-radius: 7px; text-align: left; cursor: pointer; font-size: 13px; color: var(--text); }
+.ctx-item:hover:not(:disabled), .ctx-item:focus-visible { background: var(--accent-soft); }
+.ctx-item:disabled { color: var(--faint); cursor: default; }
+.ctx-item.danger { color: var(--danger); }
+.ctx-item .mark { color: var(--accent); font-weight: 700; }
+.ctx-item .more { color: var(--faint); }
+.task .add-child { width: 24px; height: 24px; font-size: 16px; font-weight: 700; color: var(--accent); opacity: .55; }
+.task:hover .add-child, .task .add-child:focus-visible { opacity: 1; }
+.task.add-row { border-style: dashed; background: transparent; }
+.task.add-row .plus { color: var(--accent); font-weight: 700; width: 20px; text-align: center; }
+.task.add-row input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 13.5px; }
+.chip.clickable { cursor: pointer; border: 0; }
+.chip.clickable:hover, .chip.clickable.on { background: var(--accent-soft); }

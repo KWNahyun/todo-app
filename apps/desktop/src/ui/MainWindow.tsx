@@ -77,7 +77,7 @@ function Today({ selected, setSelected }: { selected: string | null; setSelected
       <InputLine day={day} today={today} autoFocus />
       <div className="bar"><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
       <div className="cols">
-        <TaskList tree={tree} now={now} selected={selected} onSelect={(id) => setSelected(id === selected ? null : id)} />
+        <TaskList tree={tree} now={now} selected={selected} onSelect={(id) => setSelected(id === selected ? null : id)} onDetail={setSelected} />
         <div className="stack" style={{ gap: 12 }}>
           {featureOn(rep, "events") && <div className="card"><span className="label">{day === today ? "오늘 일정" : "이날 일정"}</span><EventList day={day} now={now} onSelect={setSelected} /></div>}
           {featureOn(rep, "deadlines") && <div className="card"><span className="label">다가오는 마감</span><DeadlineList today={today} onSelect={setSelected} /></div>}
@@ -95,7 +95,7 @@ export function MainWindow() {
   const [selected, setSelected] = useState<string | null>(null);
   const now = useNow(!!selected, 1000);
   const [palette, setPalette] = useState(false);
-  const [rec, setRec] = useState<{ tab: "diary" | "date"; dateId?: string }>({ tab: "diary" });
+  const [rec, setRec] = useState<{ tab: string; dateId?: string }>({ tab: "diary" });
   const go = (s: Screen) => {
     setScreen(s);
     setSelected(null);
@@ -105,7 +105,13 @@ export function MainWindow() {
     if (g.select) setSelected(g.select);
     if (g.recordsTab) setRec({ tab: g.recordsTab, dateId: g.dateId });
   };
-  useEffect(() => platform.on("open-screen", (s) => s && go(s as Screen)), [platform]);
+  // 위젯에서: "today" 또는 "today|<항목 ID>" (상세 패널에 열기)
+  useEffect(() => platform.on("open-screen", (p) => {
+    if (!p) return;
+    const [s, id] = p.split("|");
+    go(s as Screen);
+    if (id) setSelected(id);
+  }), [platform]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {

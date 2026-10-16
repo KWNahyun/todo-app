@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FEATURES, THEMES, featureOn } from "../app/appearance.ts";
 import { DATE } from "../app/records.ts";
+import { allSchemas } from "../app/collections.ts";
 import { previewKind } from "../app/parse.ts";
 import { useApp, useToday } from "../app/store.tsx";
 import type { Screen } from "../platform/index.ts";
@@ -11,7 +12,7 @@ import type { Screen } from "../platform/index.ts";
 export interface Go {
   screen: Screen;
   select?: string | null;
-  recordsTab?: "diary" | "date";
+  recordsTab?: string;
   dateId?: string;
 }
 
@@ -41,6 +42,9 @@ export function Palette({ onClose, go }: { onClose: () => void; go: (g: Go) => v
             { id: "new-date", label: "데이트 일기 쓰기", hint: "새로", run: () => go({ screen: "records", recordsTab: "date", dateId: actions.addRecord(DATE, { title: "새 데이트", day: today }) }) },
           ]
         : []),
+      ...allSchemas(rep)
+        .filter((s) => !s.feature || on(s.feature))
+        .map((s) => ({ id: `col-${s.key}`, label: s.label, hint: "기록장", run: () => go({ screen: "records", recordsTab: s.key }) })),
       ...(on("stats") ? [{ id: "s-stats", label: "통계", hint: "화면", run: () => go({ screen: "stats" }) }] : []),
       ...(on("goals") || on("habits") || on("mandala") ? [{ id: "s-goals", label: "목표 · 습관 · 만다라트", hint: "화면", run: () => go({ screen: "goals" }) }] : []),
       { id: "s-set", label: "설정", hint: "화면", run: () => go({ screen: "settings" }) },

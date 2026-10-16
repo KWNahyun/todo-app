@@ -146,8 +146,19 @@ export interface Setting extends Base {
   features?: Record<string, boolean>;
 }
 
+/** 사용자 정의 기록장 모음 (설계 14장 질문의 답: 칸 종류 = 짧은 글 · 선택지 · 별점 · 숫자 · 날짜 · 사진) */
+export interface CollectionDef extends Base {
+  type: "collection";
+  label: string;
+  /** done: 완료 체크 · stages: 단계 · log: 날짜별 기록 */
+  mode: "done" | "stages" | "log";
+  stages?: string[];
+  fields?: { key: string; label: string; kind: "text" | "choice" | "rating" | "number" | "date" | "photos"; options?: string[] }[];
+  order?: string;
+}
+
 export type Entity =
-  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala | Setting;
+  | Task | Session | Event | Deadline | Goal | Habit | HabitCheck | Mood | Journal | Moment | RecordItem | Mandala | Setting | CollectionDef;
 
 export type TypeName = Entity["type"];
 export type EntityOf<T extends TypeName> = Extract<Entity, { type: T }>;

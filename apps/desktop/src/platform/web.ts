@@ -111,11 +111,16 @@ export function webPlatform(): Platform {
     emit(event, payload) {
       ch?.postMessage({ event, from: kind, payload });
     },
-    async showMain(screen?: Screen) {
+    async showMain(screen?: Screen, select?: string) {
       if (kind === "main") return;
       window.open(`?view=main${screen ? `#${screen}` : ""}`, "dt-main");
+      // 이미 열린 탭이면 화면만 바꿈
+      if (screen) ch?.postMessage({ event: "open-screen", from: kind, payload: select ? `${screen}|${select}` : screen });
     },
     async setPin() {},
+    async openUrl(url) {
+      if (url.startsWith("https://")) window.open(url, "_blank", "noopener");
+    },
     async setHotkeys() {
       return []; // 브라우저엔 전역 단축키가 없음
     },

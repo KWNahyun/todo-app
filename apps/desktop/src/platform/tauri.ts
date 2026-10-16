@@ -3,6 +3,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { V1Data, VaultFs } from "@dailytodo/core";
 import type { Config, HotkeyAction, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
 import { fromBase64, toBase64 } from "./base64.ts";
@@ -91,9 +92,9 @@ export function tauriPlatform(): Platform {
     emit(event: PeerEvent, payload?: string) {
       void emit(event, { from: kind, payload });
     },
-    async showMain(screen?: Screen) {
+    async showMain(screen?: Screen, select?: string) {
       await invoke("show_main");
-      if (screen) void emit("open-screen", { from: kind, payload: screen });
+      if (screen) void emit("open-screen", { from: kind, payload: select ? `${screen}|${select}` : screen });
     },
     async setPin(mode: PinMode) {
       await win.setAlwaysOnBottom(mode === "desktop");
@@ -116,6 +117,10 @@ export function tauriPlatform(): Platform {
         }
       }
       return failed;
+    },
+    async openUrl(url: string) {
+      if (!url.startsWith("https://")) return;
+      await openUrl(url);
     },
     idleSeconds: () => invoke<number>("idle_seconds"),
     showWidget: () => invoke<void>("show_widget"),

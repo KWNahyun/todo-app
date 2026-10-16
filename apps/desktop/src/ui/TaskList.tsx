@@ -6,7 +6,8 @@
 import { useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { isRunning, taskElapsedMs, type Task } from "@dailytodo/core";
 import { featureOn } from "../app/appearance.ts";
-import { clock, dayOf, daysBetween, ddayText } from "../app/dates.ts";
+import { addDays, clock, dayOf, daysBetween, ddayText } from "../app/dates.ts";
+import { ContextMenu, type MenuItem } from "./ContextMenu.tsx";
 import type { TaskNode } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
 import { Caret, Check, Pause, Play } from "./icons.tsx";
@@ -16,6 +17,8 @@ interface Props {
   now: number;
   selected?: string | null;
   onSelect?: (id: string) => void;
+  /** 우클릭 '상세 편집' (메인 창은 상세 패널, 위젯은 메인 창을 열어서) */
+  onDetail?: (id: string) => void;
   compact?: boolean;
 }
 
@@ -28,10 +31,33 @@ interface Drag {
   lineY: number | null;
 }
 
-export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
+/** 묶음 아래 '하위 할 일 추가…' 한 줄 (+ 버튼 · 우클릭). Enter 로 계속 더하고, Esc · 빈 채로 나가면 닫힘 */
+function ChildInput({ parentId, onClose }: { parentId: string; onClose: () => void }) {
+  const { actions } = useApp();
+  const [v, setV] = useState("");
+  return (
+    <div className="task child add-row">
+      <span className="plus">+</span>
+      <input autoFocus value={v} placeholder="하위 할 일 추가… (Enter)" aria-label="하위 할 일 추가"
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => !v.trim() && onClose()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
+            actions.addChild(parentId, v);
+            setV("");
+          }
+        }} />
+    </div>
+  );
+}
+
+export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: Props) {
   const { actions, rep } = useApp();
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; t: Task } | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
 
   // 묶음에 연결된 가장 가까운 마감 → 디데이 (v1 의 마감 ↔ 묶음 연결)
   const todayStr = dayOf(new Date(now));
@@ -83,6 +109,51 @@ export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
     setDrag(null);
   };
 
+  /** 우클릭 메뉴 (v1 _context_menu + 완료 · 타이머 · 내일로) */
+  const menuItems = (t: Task): MenuItem[] => {
+    const kids = rep.list("task", (c) => c.parentId === t.id);
+    const leaf = !kids.length;
+    const top = !t.parentId || !rep.get(t.parentId);
+    const items: MenuItem[] = [
+      { label: t.done ? "완료 취소" : "완료", onClick: () => actions.toggleDone(t.id) },
+      ...(leaf && !t.done ? [{ label: isRunning(rep, t.id) ? "타이머 정지" : "타이머 시작", onClick: () => actions.toggleTimer(t.id) }] : []),
+      { label: "상세 편집 (메모 · 예상 시간)", onClick: () => (onDetail ?? onSelect)?.(t.id) },
+      { label: "", separator: true },
+    ];
+    if (!top) {
+      items.push({ label: "묶음에서 빼기", onClick: () => actions.setParent(t.id, null) });
+    } else {
+      items.push({ label: "하위 할 일 추가", onClick: () => setAdding(t.id) });
+      const targets = tree.map((n) => n.task).filter((x) => x.id !== t.id);
+      if (leaf && targets.length) {
+        items.push({ label: "다른 할 일 아래로 묶기", sub: targets.map((x) => ({ label: x.title, onClick: () => actions.setParent(t.id, x.id) })) });
+      }
+      if (featureOn(rep, "deadlines")) {
+        const dls = rep.list("deadline", (d) => d.date >= todayStr).sort((a, b) => (a.date < b.date ? -1 : 1));
+        items.push({
+          label: "마감 연결",
+          sub: dls.length
+            ? dls.map((d) => ({ label: `${ddayText(daysBetween(todayStr, d.date))}  ${d.title}`, checked: d.groupTitle === t.title, onClick: () => actions.linkDeadline(d.id, t.title) }))
+            : [{ label: "다가오는 마감이 없어요 — '마감 10/20 …' 으로 추가", disabled: true }],
+        });
+      }
+      if (featureOn(rep, "goals")) {
+        const goals = rep.list("goal");
+        items.push({
+          label: "목표에 연결",
+          sub: [
+            ...goals.map((g) => ({ label: g.title, checked: g.title === t.title || (g.linkedTitles ?? []).includes(t.title), onClick: () => actions.linkGoal(g.id, t.title) })),
+            { label: "+ 이 할 일로 새 목표 만들기", onClick: () => actions.toGoal(t.title) },
+          ],
+        });
+      }
+    }
+    const undone = leaf ? (t.done ? [] : [t.id]) : kids.filter((k) => !k.done).map((k) => k.id);
+    if (undone.length) items.push({ label: leaf ? "내일로 넘기기" : `남은 하위 ${undone.length}개 내일로 넘기기`, onClick: () => actions.carryTo(undone, addDays(t.day, 1)) });
+    items.push({ label: "", separator: true }, { label: "지우기", danger: true, onClick: () => actions.removeTask(t.id) });
+    return items;
+  };
+
   const row = (t: Task, parent: string, opts: { child?: boolean; group?: TaskNode }) => {
     const running = isRunning(rep, t.id);
     const ms = taskElapsedMs(rep, t.id, now, { children: !!opts.group });
@@ -106,6 +177,11 @@ export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
         onPointerMove={onMove}
         onPointerUp={(e) => onUp(e, t)}
         onPointerCancel={() => setDrag(null)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setDrag(null);
+          setMenu({ x: e.clientX, y: e.clientY, t });
+        }}
       >
         {kids.length ? (
           <button
@@ -138,6 +214,9 @@ export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
           )}
         </span>
         {ms > 0 && <span className="time num">{clock(ms)}</span>}
+        {kids.length > 0 && (
+          <button className="icon-btn add-child" title="하위 할 일 추가" aria-label={`${t.title} 아래에 하위 할 일 추가`} onClick={() => setAdding(t.id)}>+</button>
+        )}
         {!kids.length && !t.done && (
           <button className={`btn${running ? " btn-active" : ""}`} onClick={() => actions.toggleTimer(t.id)}>
             {running ? <><Pause /> {compact ? "" : "정지"}</> : <><Play /> {compact ? "" : "시작"}</>}
@@ -151,9 +230,11 @@ export function TaskList({ tree, now, selected, onSelect, compact }: Props) {
     <div className="tasks" ref={box}>
       {tree.map((n) => [
         row(n.task, "", { group: n.children.length ? n : undefined }),
-        ...(!n.task.collapsed ? n.children.map((c) => row(c, n.task.id, { child: true })) : []),
+        ...(!n.task.collapsed || adding === n.task.id ? n.children.map((c) => row(c, n.task.id, { child: true })) : []),
+        ...(adding === n.task.id ? [<ChildInput key={`add-${n.task.id}`} parentId={n.task.id} onClose={() => setAdding(null)} />] : []),
       ])}
       {drag?.active && drag.lineY != null && <div className="drop-line" style={{ top: drag.lineY }} />}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.t)} onClose={() => setMenu(null)} />}
     </div>
   );
 }

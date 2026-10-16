@@ -56,7 +56,8 @@ export interface Platform {
   /** 다른 창이 보관함에 썼다 / 설정을 바꿨다 / 화면을 열어 달라 */
   on(event: PeerEvent, cb: (payload?: string) => void): () => void;
   emit(event: PeerEvent, payload?: string): void;
-  showMain(screen?: Screen): Promise<void>;
+  /** 메인 창을 열고 그 화면으로 (select: 상세 패널에 열 항목) */
+  showMain(screen?: Screen, select?: string): Promise<void>;
   setPin(mode: PinMode): Promise<void>;
   /** PC 의 그림 파일 읽기 (v1 기록장 사진 가져오기용, 웹에선 안 됨) */
   readImageFile(path: string): Promise<Uint8Array>;
@@ -64,6 +65,8 @@ export interface Platform {
   idleSeconds(): Promise<number>;
   /** 전역 단축키를 이것들로 (이전 것은 모두 풂) → 등록 못 한 조합 (다른 프로그램이 쓰는 중 등) */
   setHotkeys(keys: Partial<Record<HotkeyAction, string>>, onPress: (a: HotkeyAction) => void): Promise<string[]>;
+  /** 기본 브라우저로 주소 열기 (지도 등, https 만) */
+  openUrl(url: string): Promise<void>;
   /** 위젯 창을 앞으로 */
   showWidget(): Promise<void>;
   /** OS 알림 (권한이 없으면 조용히 넘어감) */

@@ -45,6 +45,10 @@ export const FEATURES = [
   { id: "goals", label: "큰 목표", hint: "누적 시간 목표" },
   { id: "mandala", label: "만다라트", hint: "9×9 목표 계획표" },
   { id: "date", label: "데이트 일기", hint: "기록장의 데이트 일기" },
+  { id: "bucket", label: "버킷리스트", hint: "기록장: 언젠가 해 보고 싶은 것" },
+  { id: "places", label: "가고 싶은 곳", hint: "기록장: 카페 · 여행지 · 맛집, 다녀온 후기" },
+  { id: "reviews", label: "콘텐츠 리뷰", hint: "기록장: 책 · 영화 · 드라마, 별점과 감상" },
+  { id: "hobby", label: "취미 기록", hint: "기록장: 날짜별 취미 활동과 사진" },
 ] as const;
 export type FeatureId = (typeof FEATURES)[number]["id"];
 

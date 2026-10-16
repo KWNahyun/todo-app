@@ -8,7 +8,7 @@ import { useApp, useData, useNow, useToday } from "../app/store.tsx";
 import { DEFAULT_HOTKEYS, type HotkeyAction, type PinMode } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right } from "./icons.tsx";
-import { EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
+import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
 import { MoodPicker } from "./Records.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { AwayOverlay, HabitChips, PomoBar, ReviewSheet, useGuard } from "./WidgetGuard.tsx";
@@ -47,6 +47,9 @@ export function Widget() {
   const [logOpen, setLogOpen] = useState(true);
   const [cal, setCal] = useState(false);
   const [review, setReview] = useState(false);
+  const [showDl, setShowDl] = useState(false);
+  /** 위젯은 좁아서 상세는 메인 창의 상세 패널로 */
+  const openDetail = (id: string) => void platform.showMain("today", id);
   const [toast, setToast] = useState<string | null>(null);
   const guard = useGuard();
   useEffect(() => {
@@ -143,24 +146,25 @@ export function Widget() {
 
         <div className="w-chips">
           {f.events && (
-            <span className="chip">
+            <button className="chip clickable" title="일정표 열기" onClick={() => void platform.showMain("schedule")}>
               일정 {events.length}
               {next?.time && <span className="num" style={{ color: "var(--accent)" }}>{next.time}</span>}
-            </span>
+            </button>
           )}
           {dl && (
-            <span className="chip" title={dl.title}>
+            <button className={`chip clickable${showDl ? " on" : ""}`} title="다가오는 마감 펼치기" aria-expanded={showDl} onClick={() => setShowDl(!showDl)}>
               마감 <span className={`tag ${dl.dday <= 3 ? "tag-danger" : dl.dday <= 7 ? "tag-sun" : "tag-accent"}`}>{ddayText(dl.dday)}</span>
-            </span>
+            </button>
           )}
           {day !== today && <button className="chip" style={{ cursor: "pointer" }} onClick={() => go(today)}>오늘로</button>}
         </div>
 
-        {f.events && events.length > 0 && <EventList day={day} now={now} limit={4} />}
+        {showDl && f.deadlines && <div className="card"><DeadlineList today={today} onSelect={openDetail} /></div>}
+        {f.events && events.length > 0 && <EventList day={day} now={now} limit={4} onSelect={openDetail} />}
         {guard.pomo && <PomoBar pomo={guard.pomo} setPomo={guard.setPomo} />}
         <InputLine day={day} today={today} />
         <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
-        <TaskList tree={tree} now={now} compact />
+        <TaskList tree={tree} now={now} compact onDetail={openDetail} />
 
         <div className="row" style={{ justifyContent: "space-between" }}>
           <button className="sechead" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>

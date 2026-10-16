@@ -48,14 +48,17 @@ export class Actions {
 
   // ---------- 되돌리기 ----------
 
-  /** ids 의 지금 값을 찍어 두고 fn 실행. fn 이 돌려준 ID 는 새로 만든 것 → 되돌리면 지움 */
-  private track(label: string, ids: string[], fn: () => string[] | void): void {
+  /**
+   * ids 의 지금 값을 찍어 두고 fn 실행. fn 이 돌려준 ID 는 새로 만든 것 → 되돌리면 지움.
+   * 되돌리기 줄은 지울 때만 띄움 (announce) — 누를 때마다 뜨면 거슬려서 (사용자 요청). 나머지는 Ctrl+Z 로.
+   */
+  private track(label: string, ids: string[], fn: () => string[] | void, announce = false): void {
     const snaps: Snap[] = [...new Set(ids)].map((id) => ({ id, before: this.rep.get(id) as Record<string, unknown> | undefined }));
     const created = fn() ?? [];
     for (const id of created) if (!snaps.some((s) => s.id === id)) snaps.push({ id, before: undefined });
     this.stack.push({ label, snaps });
     if (this.stack.length > 50) this.stack.shift();
-    this.notify(label);
+    this.notify(announce ? label : null);
   }
 
   canUndo(): boolean {
@@ -209,6 +212,52 @@ export class Actions {
     });
   }
 
+  /** 묶음 아래에 하위 할 일 바로 추가 (+ 버튼 · 우클릭 '하위 할 일 추가') */
+  addChild(parentId: string, title: string): string | null {
+    const p = this.rep.get<"task">(parentId);
+    if (!p || !title.trim()) return null;
+    const kids = this.rep.list("task", (t) => t.parentId === parentId).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1));
+    let id = "";
+    this.track(`'${p.title} > ${title.trim()}' 추가`, [parentId], () => {
+      if (p.collapsed) this.rep.update<"task">(parentId, { collapsed: false });
+      id = this.rep.create("task", { day: p.day, title: title.trim(), done: false, parentId, order: this.orderAfterLast(kids) });
+      return [id];
+    });
+    return id;
+  }
+
+  /** 다른 할 일 아래로 묶기 / 묶음에서 빼기(null) (v1 set_parent) */
+  setParent(id: string, parentId: string | null): void {
+    const t = this.rep.get<"task">(id);
+    if (!t || t.id === parentId) return;
+    const p = parentId ? this.rep.get<"task">(parentId) : undefined;
+    const sibs = parentId
+      ? this.rep.list("task", (x) => x.parentId === parentId).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1))
+      : this.topLevel(t.day);
+    this.track(p ? `'${t.title}' → '${p.title}' 아래로` : `'${t.title}' 묶음에서 뺌`, [id, ...(parentId ? [parentId] : [])], () => {
+      this.rep.update<"task">(id, { parentId, order: this.orderAfterLast(sibs) });
+      if (p?.collapsed) this.rep.update<"task">(parentId!, { collapsed: false });
+    });
+  }
+
+  /** 마감을 이 묶음에 연결 · 다시 누르면 풂 (v1 link_deadline) */
+  linkDeadline(deadlineId: string, groupTitle: string): void {
+    const d = this.rep.get<"deadline">(deadlineId);
+    if (!d) return;
+    const on = d.groupTitle !== groupTitle;
+    this.track(on ? `마감 '${d.title}' 연결` : `마감 '${d.title}' 연결 풂`, [deadlineId], () => this.rep.update<"deadline">(deadlineId, { groupTitle: on ? groupTitle : null }));
+  }
+
+  /** 이 이름의 시간이 목표에 쌓이게 · 다시 누르면 풂 (v1 link_goal) */
+  linkGoal(goalId: string, title: string): void {
+    const g = this.rep.get<"goal">(goalId);
+    if (!g || g.title === title) return;
+    const linked = g.linkedTitles ?? [];
+    const on = !linked.includes(title);
+    this.track(on ? `목표 '${g.title}'에 연결` : `목표 '${g.title}' 연결 풂`, [goalId], () =>
+      this.rep.update<"goal">(goalId, { linkedTitles: on ? [...linked, title] : linked.filter((x) => x !== title) }));
+  }
+
   setCollapsed(id: string, collapsed: boolean): void {
     this.rep.update<"task">(id, { collapsed });
   }
@@ -223,12 +272,12 @@ export class Actions {
     const all = [...tasks, ...sessions];
     this.track(`'${t.title}' 지움`, all, () => {
       for (const x of all) this.rep.remove(x);
-    });
+    }, true);
   }
 
   remove(id: string, label = "지움"): void {
     if (!this.rep.get(id)) return;
-    this.track(label, [id], () => this.rep.remove(id));
+    this.track(label, [id], () => this.rep.remove(id), true);
   }
 
   /** 같은 묶음 안에서 index 자리로 옮김 (드래그 정렬) */
@@ -293,6 +342,49 @@ export class Actions {
     return id;
   }
 
+  /** 모음(완료 방식): 완료 표시 · 이룬 날 */
+  setRecordDone(id: string, done: boolean, day: string): void {
+    const r = this.rep.get<"record">(id);
+    if (!r) return;
+    this.track(done ? `'${r.title}' 완료` : `'${r.title}' 완료 취소`, [id], () => this.rep.update<"record">(id, { done, doneOn: done ? day : null }));
+  }
+
+  /** 모음(단계 방식): 마지막 단계가 되면 그날을 기록 (v1 set_stage) */
+  setRecordStage(s: { stages?: string[] }, id: string, stage: number, day: string): void {
+    const r = this.rep.get<"record">(id);
+    if (!r || (r.stage ?? 0) === stage) return;
+    const last = (s.stages?.length ?? 1) - 1;
+    const label = s.stages?.[stage] ?? String(stage);
+    this.track(`'${r.title}' → ${label}`, [id], () => this.rep.update<"record">(id, { stage, doneOn: stage >= last ? day : null }));
+  }
+
+  /** 모음 항목 → 오늘 할 일 '묶음 > 제목' (이미 있으면 false) */
+  recordToToday(id: string, group: string, day: string): boolean {
+    const r = this.rep.get<"record">(id);
+    if (!r) return false;
+    const ref = `record/${id}`;
+    if (this.rep.list("task", (t) => t.ref === ref && t.day === day && !t.done).length) return false;
+    const res = this.add(`${group} > ${r.title}`, day);
+    if (!res.ok) return false;
+    this.rep.update<"task">(res.id, { ref });
+    return true;
+  }
+
+  /** 사용자 정의 모음 지우기: 그 안의 기록까지 (되돌리기로 모두 되살림) */
+  removeCollection(id: string): void {
+    const c = this.rep.get<"collection">(id);
+    if (!c) return;
+    const ids = [id, ...this.rep.list("record", (r) => r.collection === id).map((r) => r.id)];
+    this.track(`모음 '${c.label}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)), true);
+  }
+
+  /** 이름으로 큰 목표 등록 (이미 있으면 false) */
+  toGoal(title: string): boolean {
+    if (this.rep.list("goal", (g) => g.title === title).length) return false;
+    this.create("goal", { title, linkedTitles: [] }, `목표 '${title}' 추가`);
+    return true;
+  }
+
   /** 아무 종류나 새로 (목표 · 습관 등) */
   create(type: string, fields: Record<string, unknown>, label: string, id?: string): string {
     let made = "";
@@ -322,7 +414,7 @@ export class Actions {
     const h = this.rep.get<"habit">(habitId);
     if (!h) return;
     const ids = [habitId, ...this.rep.list("habitCheck", (c) => c.habitId === habitId).map((c) => c.id)];
-    this.track(`습관 '${h.name}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)));
+    this.track(`습관 '${h.name}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)), true);
   }
 
   /** 같이 쓰는 설정 (모양 · 기능 켜고 끄기) — 모든 기기에 동기화 */

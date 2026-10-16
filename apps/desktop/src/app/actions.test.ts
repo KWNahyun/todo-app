@@ -147,6 +147,39 @@ describe("동작 · 되돌리기", () => {
     expect(featureOn(rep, "mood")).toBe(false);
   });
 
+  it("되돌리기 줄은 지울 때만 뜸", async () => {
+    const { a } = await setup();
+    const seen: (string | null)[] = [];
+    a.onChange((l) => seen.push(l));
+    const r = a.add("모델링", DAY);
+    if (!r.ok) throw new Error();
+    a.toggleDone(r.id);
+    a.removeTask(r.id);
+    expect(seen).toEqual([null, null, "'모델링' 지움"]);
+  });
+
+  it("우클릭 메뉴: 하위 추가 · 다른 할 일 아래로 · 묶음에서 빼기 · 마감 · 목표 연결", async () => {
+    const { rep, a } = await setup();
+    a.add("KAMP", DAY);
+    a.add("이메일", DAY);
+    const [kamp, mail] = dayTree(rep, DAY).map((n) => n.task);
+    a.addChild(kamp!.id, "모델링");
+    a.setParent(mail!.id, kamp!.id);
+    expect(titles(rep)).toEqual(["KAMP", "  모델링", "  이메일"]);
+    a.setParent(mail!.id, null);
+    expect(titles(rep)).toEqual(["KAMP", "  모델링", "이메일"]);
+    const dl = a.addDated({ kind: "deadline", date: "2026-10-20", title: "KAMP 제출" });
+    a.linkDeadline(dl, "KAMP");
+    expect(rep.get<"deadline">(dl)!.groupTitle).toBe("KAMP");
+    a.linkDeadline(dl, "KAMP");
+    expect(rep.get<"deadline">(dl)!.groupTitle).toBeNull();
+    const g = a.create("goal", { title: "공모전", linkedTitles: [] }, "목표");
+    a.linkGoal(g, "KAMP");
+    expect(rep.get<"goal">(g)!.linkedTitles).toEqual(["KAMP"]);
+    a.undo();
+    expect(rep.get<"goal">(g)!.linkedTitles).toEqual([]);
+  });
+
   it("진행률 · 타임라인", async () => {
     const { rep, a, clock } = await setup();
     a.add("KAMP > 모델링", DAY);

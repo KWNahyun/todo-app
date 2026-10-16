@@ -10,12 +10,13 @@ import {
   DATE, MOODS, dateRecords, daySummary, diaryDays, journalOf, momentsOf, moodOf, parseTags, promptOf,
 } from "../app/records.ts";
 import { featureOn } from "../app/appearance.ts";
-import { savePhoto } from "../app/photo.ts";
 import { timeline } from "../app/selectors.ts";
 import { useApp, useData, useNow, useToday } from "../app/store.tsx";
+import { allSchemas } from "../app/collections.ts";
 import { CalendarPopup } from "./Calendar.tsx";
+import { CollectionDesigner, CollectionView } from "./Collection.tsx";
 import { Close, Left, Right, Trash } from "./icons.tsx";
-import { ConflictNotice, Lightbox, PhotoButton, Thumb } from "./photos.tsx";
+import { ConflictNotice, Lightbox, PhotoButton, PhotoField, Thumb } from "./photos.tsx";
 
 // ---------- 공용 ----------
 
@@ -48,7 +49,7 @@ export function MoodPicker({ day }: { day: string }) {
 }
 
 /** 입력하는 동안 0.8초마다 · 나갈 때 저장 */
-function useAutosave(value: string, save: (v: string) => void): [string, (v: string) => void, () => void] {
+export function useAutosave(value: string, save: (v: string) => void): [string, (v: string) => void, () => void] {
   const [v, setV] = useState(value);
   const dirty = useRef(false);
   const t = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -229,7 +230,7 @@ function Diary() {
 
 // ---------- 데이트 일기 ----------
 
-function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {
+export function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {
   return (
     <span className="stars" role={onChange ? "radiogroup" : undefined} aria-label={`별점 ${value}`}>
       {[1, 2, 3, 4, 5].map((n) =>
@@ -257,7 +258,7 @@ function DateCard({ r, on, onClick }: { r: RecordItem; on: boolean; onClick: () 
   );
 }
 
-function Field({ label, value, onSave, placeholder, inputMode }: { label: string; value: string; onSave: (v: string) => void; placeholder?: string; inputMode?: "numeric" }) {
+export function Field({ label, value, onSave, placeholder, inputMode }: { label: string; value: string; onSave: (v: string) => void; placeholder?: string; inputMode?: "numeric" }) {
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
   const id = `f-${label}`;
@@ -272,25 +273,9 @@ function Field({ label, value, onSave, placeholder, inputMode }: { label: string
 }
 
 function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
-  const { actions, platform, rep } = useApp();
-  const photos = r.f?.photos ?? [];
+  const { actions } = useApp();
   const [note, change, flush] = useAutosave(r.note ?? "", (v) => actions.update(r.id, { note: v }, "이야기 고침"));
-  const [lb, setLb] = useState<number | null>(null);
-  const [v1Msg, setV1Msg] = useState<string | null>(null);
   useEffect(() => () => flush(), [r.id]);
-  const setPhotos = (ps: Photo[], label: string) => actions.update(r.id, { f: { photos: ps } }, label);
-  const v1File = typeof r.f?.file === "string" && r.f.file ? r.f.file : null;
-  const importV1 = async () => {
-    try {
-      setV1Msg("가져오는 중…");
-      const bytes = await platform.readImageFile(v1File!);
-      const p = await savePhoto(rep.fs, new Blob([bytes as Uint8Array<ArrayBuffer>]));
-      actions.update(r.id, { f: { photos: [...photos, p], file: null } }, "v1 사진 가져옴");
-      setV1Msg(null);
-    } catch (e) {
-      setV1Msg(`가져오지 못했어요: ${String(e)}`);
-    }
-  };
   return (
     <div className="rec-main">
       <div className="panel-head">
@@ -312,32 +297,7 @@ function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
       </div>
       <Field label="태그" value={(r.tags ?? []).map((t) => `#${t}`).join(" ")} onSave={(v) => actions.update(r.id, { tags: parseTags(v) }, "태그 고침")} placeholder="#기념일 #맛집" />
 
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <span className="label">사진 {photos.length ? `${photos.length}장 · 첫 장이 대표` : ""}</span>
-        <PhotoButton label="사진 넣기" onAdd={(ps) => setPhotos([...photos, ...ps], `사진 ${ps.length}장 넣음`)} />
-      </div>
-      {photos.length > 0 && (
-        <div className="gallery">
-          {photos.map((p, i) => (
-            <span key={p.id} className="thumb-wrap">
-              <Thumb photo={p} size={120} onClick={() => setLb(i)} />
-              <span className="ops">
-                {i > 0 && <button className="btn" onClick={() => setPhotos([p, ...photos.filter((x) => x !== p)], "대표 사진 바꿈")}>대표로</button>}
-                <button className="btn" aria-label="사진 빼기" onClick={() => setPhotos(photos.filter((x) => x !== p), "사진 뺌")}><Trash /></button>
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
-      {v1File && (
-        <div className="notice">
-          <span>v1 에 붙여 둔 사진: <span className="num" style={{ fontSize: 12 }}>{v1File}</span></span>
-          <div className="row">
-            <button className="btn" onClick={() => void importV1()}>이 사진 가져오기</button>
-            {v1Msg && <span className="muted" style={{ fontSize: 12 }}>{v1Msg}</span>}
-          </div>
-        </div>
-      )}
+      <PhotoField r={r} />
 
       <span className="label">무엇을 했는지 · 좋았던 순간 · 다음에 하고 싶은 것</span>
       <ConflictNotice id={r.id} field="note" current={note} />
@@ -345,7 +305,6 @@ function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
       <div className="row">
         <button className="btn" onClick={() => { actions.remove(r.id, `'${r.title}' 지움`); onClose(); }}><Trash /> 지우기</button>
       </div>
-      {lb != null && <Lightbox photos={photos} index={lb} onClose={() => setLb(null)} />}
     </div>
   );
 }
@@ -374,24 +333,39 @@ function DateDiary({ select }: { select?: string }) {
   );
 }
 
-export function Records({ initial = "diary", select }: { initial?: "diary" | "date"; select?: string }) {
+/** 기록장: 다이어리 · 데이트 일기 · 모음들(기본 넷 + 사용자 정의) — 꺼 둔 기능의 모음은 숨김 */
+export function Records({ initial = "diary", select }: { initial?: string; select?: string }) {
   const { rep } = useApp();
   useData();
-  const [tab, setTab] = useState<"diary" | "date">(initial);
+  const [tab, setTab] = useState<string>(initial);
+  const [design, setDesign] = useState<"new" | string | null>(null);
   useEffect(() => setTab(initial), [initial]);
-  const date = featureOn(rep, "date");
+  const schemas = allSchemas(rep).filter((s) => !s.feature || featureOn(rep, s.feature));
+  const tabs: [string, string][] = [
+    ["diary", "다이어리"],
+    ...(featureOn(rep, "date") ? [["date", "데이트 일기"] as [string, string]] : []),
+    ...schemas.map((s) => [s.key, s.label] as [string, string]),
+  ];
+  const cur = tabs.some(([k]) => k === tab) ? tab : "diary";
+  const schema = schemas.find((s) => s.key === cur);
+  const def = schema?.custom ? rep.get<"collection">(schema.key) : undefined;
   return (
     <>
       <div className="center-head">
         <h1>기록장</h1>
-        {date && (
-          <div className="seg" role="group" aria-label="모음" style={{ marginLeft: "auto" }}>
-            <button aria-pressed={tab === "diary"} onClick={() => setTab("diary")}>다이어리</button>
-            <button aria-pressed={tab === "date"} onClick={() => setTab("date")}>데이트 일기</button>
-          </div>
-        )}
+        <div className="rec-tabs" role="tablist" aria-label="모음">
+          {tabs.map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={cur === k} className={cur === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+          ))}
+          <button className="add" title="새 모음 만들기" onClick={() => setDesign("new")}>+ 모음</button>
+        </div>
+        {def && <button className="btn btn-ghost" onClick={() => setDesign(def.id)}>모음 고치기</button>}
       </div>
-      {tab === "date" && date ? <DateDiary select={select} /> : <Diary />}
+      {cur === "date" ? <DateDiary select={select} /> : schema ? <CollectionView s={schema} /> : <Diary />}
+      {design && (
+        <CollectionDesigner def={design === "new" ? undefined : rep.get<"collection">(design)} onClose={() => setDesign(null)}
+          onSaved={(id) => { setDesign(null); setTab(id); }} />
+      )}
     </>
   );
 }
