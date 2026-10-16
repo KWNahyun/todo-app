@@ -30,6 +30,8 @@ export interface Config {
   longHours?: number;
   /** 이 시각 넘으면 '오늘 정리하기' 알림 (빈 값이면 끔, 기본 22:00) */
   reviewTime?: string;
+  /** 위젯 바탕 불투명도 % (40~100, 기본 100) — 글자 · 할 일 칸은 그대로 또렷하게 */
+  widgetAlpha?: number;
   /** 전역 단축키 (Tauri 가속기 문자열, 빈 값이면 끔) — 기본은 v1 과 같음 */
   hotkeys?: Partial<Record<HotkeyAction, string>>;
 }

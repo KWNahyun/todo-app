@@ -226,6 +226,33 @@ describe("드라이브 상황", () => {
   });
 });
 
+describe("바뀐 파일만 읽기", () => {
+  it("크기가 그대로인 기록 파일은 다시 읽지 않고, 늘어나면 새 줄만", async () => {
+    const fs = new MemoryFs();
+    const pc = await Replica.open(fs, { deviceId: "pc" });
+    const phone = await Replica.open(fs, { deviceId: "phone" });
+    pc.create("task", { day: "2026-10-15", title: "a" });
+    await pc.sync();
+    const reads: string[] = [];
+    const orig = fs.read.bind(fs);
+    fs.read = async (p) => {
+      reads.push(p);
+      return orig(p);
+    };
+    await phone.pull();
+    const first = reads.filter((p) => p.startsWith("log/")).length;
+    reads.length = 0;
+    await phone.pull();
+    expect(reads.filter((p) => p.startsWith("log/"))).toEqual([]); // 바뀐 게 없음
+    pc.create("task", { day: "2026-10-15", title: "b" });
+    await pc.flush();
+    await phone.pull();
+    expect(reads.filter((p) => p.startsWith("log/"))).toHaveLength(1);
+    expect(first).toBe(1);
+    expect(phone.list("task")).toHaveLength(2);
+  });
+});
+
 describe("스냅샷 · 기기 안 저장 · 보관함", () => {
   it("새 기기는 스냅샷 + 이후 기록으로 같은 상태", async () => {
     const fs = new MemoryFs();

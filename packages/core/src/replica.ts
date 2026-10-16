@@ -78,6 +78,8 @@ export class Replica {
   private pending: Op[] = [];
   private cursors: Record<string, number> = {};
   private tailChecked = new Set<string>();
+  /** 지난번에 읽은 기록 파일 크기 (이 실행 동안만) */
+  private sizes = new Map<string, number>();
   private wall: () => number;
   private listeners = new Set<() => void>();
 
@@ -229,10 +231,16 @@ export class Replica {
   }
 
   async pull(): Promise<PullResult> {
-    const paths = (await this.fs.list("log/")).filter((p) => deviceOfPath(p) !== null);
+    // 크기를 한 번에 알 수 있으면, 지난번과 크기가 같은 파일(= 새 줄 없음)은 읽지 않음
+    const sized = this.fs.listSizes ? await this.fs.listSizes("log/") : null;
+    const paths = (sized ? sized.map((x) => x.path) : await this.fs.list("log/")).filter((p) => deviceOfPath(p) !== null);
+    const sizeOf = new Map(sized?.map((x) => [x.path, x.size]));
     const r: PullResult = { applied: 0, files: 0, bad: 0 };
     for (const path of paths) {
+      const size = sizeOf.get(path);
+      if (size != null && this.sizes.get(path) === size && this.cursors[path] != null) continue;
       const text = await this.fs.read(path);
+      if (size != null) this.sizes.set(path, size);
       if (text === null) continue;
       let from = this.cursors[path] ?? 0;
       const lines = text.split("\n").length - 1;

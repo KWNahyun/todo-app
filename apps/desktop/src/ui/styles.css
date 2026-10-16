@@ -495,3 +495,13 @@ select.field { appearance: auto; }
 .paper-text { position: absolute; transform-origin: top left; min-width: 160px; min-height: 2.2em; border: 1.5px dashed var(--accent); background: rgba(255, 255, 255, .85); padding: 0 4px; line-height: 1.35; resize: both; outline: none; }
 .paper-sel { gap: 8px; }
 .print-page svg { width: 100%; height: auto; }
+
+/* ---------- 위젯 투명도 · 도움말 (D4) ---------- */
+html.widget-window, html.widget-window body { background: transparent; }
+html.widget-window .widget { background: color-mix(in srgb, var(--bg) var(--w-alpha, 100%), transparent); border-radius: 12px; overflow: hidden; }
+html.widget-window .w-top, html.widget-window .w-foot { background: color-mix(in srgb, var(--surface2) var(--w-alpha, 100%), transparent); }
+.range-row { display: flex; gap: 10px; align-items: center; }
+.range-row input[type="range"] { width: 200px; accent-color: var(--accent); }
+.help code, .help kbd { font-family: var(--font-num); font-size: 12.5px; background: var(--surface2); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+.help kbd { border: 1px solid var(--border); border-bottom-width: 2px; }
+.help .tips { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }

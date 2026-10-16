@@ -23,6 +23,11 @@ export interface VaultFs {
   /** 사진 등 이진 파일 (blobs/) */
   readBytes(path: string): Promise<Uint8Array | null>;
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
+  /**
+   * (선택) 파일 목록 + 크기를 한 번에 — 있으면 pull 이 크기가 그대로인 기록 파일은 읽지 않음
+   * (기록 파일은 덧붙이기만 하므로 바뀌면 반드시 커짐)
+   */
+  listSizes?(prefix: string): Promise<{ path: string; size: number }[]>;
 }
 
 export class MemoryFs implements VaultFs {
@@ -47,6 +52,9 @@ export class MemoryFs implements VaultFs {
   }
   async list(prefix: string): Promise<string[]> {
     return [...this.files.keys(), ...this.bins.keys()].filter((p) => p.startsWith(prefix)).sort();
+  }
+  async listSizes(prefix: string): Promise<{ path: string; size: number }[]> {
+    return [...this.files].filter(([p]) => p.startsWith(prefix)).map(([path, t]) => ({ path, size: new TextEncoder().encode(t).length })).sort((a, b) => (a.path < b.path ? -1 : 1));
   }
 }
 

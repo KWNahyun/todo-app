@@ -134,6 +134,25 @@ fn vault_list(root: String, prefix: String) -> Res<Vec<String>> {
     Ok(out)
 }
 
+#[derive(serde::Serialize)]
+struct Sized {
+    path: String,
+    size: u64,
+}
+
+/// 목록 + 크기 한 번에 (동기화가 크기 그대로인 기록 파일은 안 읽게)
+#[tauri::command]
+fn vault_list_sizes(root: String, prefix: String) -> Res<Vec<Sized>> {
+    let base = PathBuf::from(&root);
+    Ok(vault_list(root, prefix)?
+        .into_iter()
+        .map(|path| {
+            let size = fs::metadata(base.join(&path)).map(|m| m.len()).unwrap_or(0);
+            Sized { path, size }
+        })
+        .collect())
+}
+
 const LOCAL_NAMES: &[&str] = &["config.json", "local-main.json", "local-widget.json"];
 
 fn local_path(app: &AppHandle, name: &str) -> Res<PathBuf> {
@@ -336,7 +355,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            vault_read, vault_write, vault_append, vault_list, vault_read_bytes, vault_write_bytes, read_image_file,
+            vault_read, vault_write, vault_append, vault_list, vault_list_sizes, vault_read_bytes, vault_write_bytes, read_image_file,
             local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds, save_export
         ])
         .on_window_event(|window, event| {
@@ -391,6 +410,8 @@ mod tests {
         );
         assert_eq!(vault_list(root.clone(), "snapshots/".into()).unwrap(), Vec::<String>::new());
         assert_eq!(vault_list(root.clone(), "".into()).unwrap().len(), 3);
+        let sizes = vault_list_sizes(root.clone(), "log/".into()).unwrap();
+        assert_eq!(sizes.iter().map(|s| s.size).collect::<Vec<_>>(), vec!["a\n한글\n".len() as u64, 2]);
         // 이진 파일: base64 로 왕복
         let bytes: Vec<u8> = (0..=255).collect();
         vault_write_bytes(root.clone(), "blobs/a.webp".into(), B64.encode(&bytes)).unwrap();

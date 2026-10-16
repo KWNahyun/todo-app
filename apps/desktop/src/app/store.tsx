@@ -65,6 +65,30 @@ export class SyncEngine {
     void this.platform.writeLocal(JSON.stringify(l));
   };
 
+  /**
+   * 하루 한 번 스냅샷 (설계 7.3) — 새 기기 · 지운 기기 안 저장이 기록을 처음부터 다 읽지 않게.
+   * 메인 창만 (같은 PC 의 위젯까지 쓰면 같은 내용이 둘).
+   */
+  private snapshotDaily() {
+    if (this.platform.window !== "main") return;
+    const key = `dt-snapshot:${this.rep.deviceId}`;
+    let last = 0;
+    try {
+      last = Number(localStorage.getItem(key) || 0);
+    } catch {
+      // 기억 못 하면 오늘 한 번 더 쓸 뿐
+    }
+    if (Date.now() - last < 24 * 3_600_000) return;
+    void this.run(async () => {
+      await this.rep.writeSnapshot();
+      try {
+        localStorage.setItem(key, String(Date.now()));
+      } catch {
+        // 위와 같음
+      }
+    });
+  }
+
   /** 동기화 고리 시작 → 멈추는 함수 */
   start(): () => void {
     let flushT: ReturnType<typeof setTimeout> | undefined;
@@ -86,7 +110,7 @@ export class SyncEngine {
     window.addEventListener("focus", onFocus);
     window.addEventListener("beforeunload", this.saveLocal);
     const every = setInterval(this.pull, 15_000);
-    void this.syncNow();
+    void this.syncNow().then(() => this.snapshotDaily());
     return () => {
       offRep();
       offPeer();

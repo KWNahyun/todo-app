@@ -13,6 +13,8 @@ import { MainWindow } from "./ui/MainWindow.tsx";
 import { Widget } from "./ui/Widget.tsx";
 
 const platform = getPlatform();
+// 위젯 창은 투명 창 — 바탕은 위젯이 직접 칠함 (투명도 설정)
+if (platform.window === "widget") document.documentElement.classList.add("widget-window");
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

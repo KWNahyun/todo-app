@@ -196,6 +196,7 @@ export function Settings() {
   useData();
   const sync = useSync();
   const shared = sharedSettings(rep);
+  const [alpha, setAlpha] = useState(config.widgetAlpha ?? 100);
   const [root, setRoot] = useState(config.vaultRoot ?? "");
   const [name, setName] = useState(config.deviceName);
   const theme = shared.theme ?? config.theme ?? "minimal";
@@ -229,6 +230,17 @@ export function Settings() {
           <div className="seg" role="group" aria-label="간격">
             {DENSITIES.map((d) => <button key={d.id} aria-pressed={(shared.density ?? "normal") === d.id} onClick={() => actions.setShared({ density: d.id }, `간격: ${d.label}`)}>{d.label}</button>)}
           </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>위젯</h2>
+        <label className="label" htmlFor="walpha">바탕 투명도 (이 PC 만) — 글자와 할 일 칸은 또렷하게 두고 바탕만 비쳐요</label>
+        <div className="range-row">
+          <input id="walpha" type="range" min={40} max={100} step={5} value={alpha} onChange={(e) => setAlpha(Number(e.target.value))}
+            onPointerUp={() => alpha !== (config.widgetAlpha ?? 100) && void saveConfig({ widgetAlpha: alpha })}
+            onKeyUp={() => alpha !== (config.widgetAlpha ?? 100) && void saveConfig({ widgetAlpha: alpha })} />
+          <span className="num muted">{alpha}%</span>
         </div>
       </section>
 

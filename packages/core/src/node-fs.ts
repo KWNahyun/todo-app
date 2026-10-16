@@ -1,7 +1,7 @@
 /**
  * PC 용: 동기화 앱(OneDrive · Google Drive)이 만든 폴더를 그대로 읽고 씀. Node 전용 (Tauri 에선 P2 에서 플러그인으로).
  */
-import { appendFile, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { V1_FILES, type V1Data } from "./import-v1.ts";
 import type { VaultFs } from "./vault.ts";
@@ -34,6 +34,18 @@ export class NodeFs implements VaultFs {
     const tmp = `${p}.${process.pid}.tmp`;
     await writeFile(tmp, text, "utf8");
     await rename(tmp, p);
+  }
+
+  async listSizes(prefix: string): Promise<{ path: string; size: number }[]> {
+    const out: { path: string; size: number }[] = [];
+    for (const path of await this.list(prefix)) {
+      try {
+        out.push({ path, size: (await stat(this.abs(path))).size });
+      } catch {
+        // 그 사이 사라진 파일
+      }
+    }
+    return out;
   }
 
   async readBytes(path: string): Promise<Uint8Array | null> {

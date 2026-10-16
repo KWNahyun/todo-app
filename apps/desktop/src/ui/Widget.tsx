@@ -121,7 +121,7 @@ export function Widget() {
     : [];
 
   return (
-    <div className="widget">
+    <div className="widget" style={{ "--w-alpha": `${config.widgetAlpha ?? 100}%` } as React.CSSProperties}>
       <header className="w-top" data-tauri-drag-region>
         <b data-tauri-drag-region>❦ Daily Todo</b>
         <div className="btns">

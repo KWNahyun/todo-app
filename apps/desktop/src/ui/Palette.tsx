@@ -23,7 +23,7 @@ interface Cmd {
   run: () => void;
 }
 
-export function Palette({ onClose, go }: { onClose: () => void; go: (g: Go) => void }) {
+export function Palette({ onClose, go, onHelp }: { onClose: () => void; go: (g: Go) => void; onHelp: () => void }) {
   const { rep, actions, platform, saveConfig } = useApp();
   const today = useToday();
   const [q, setQ] = useState("");
@@ -49,12 +49,13 @@ export function Palette({ onClose, go }: { onClose: () => void; go: (g: Go) => v
       ...(on("goals") || on("habits") || on("mandala") ? [{ id: "s-goals", label: "목표 · 습관 · 만다라트", hint: "화면", run: () => go({ screen: "goals" }) }] : []),
       { id: "s-set", label: "설정", hint: "화면", run: () => go({ screen: "settings" }) },
       { id: "widget", label: "위젯 보이기", hint: "창", run: () => void platform.showWidget() },
+      { id: "help", label: "도움말 (입력 문법 · 단축키)", hint: "F1", run: onHelp },
       ...(on("review") ? [{ id: "review", label: "오늘 정리하기", hint: "위젯", run: () => { void platform.showWidget(); platform.emit("open-review"); } }] : []),
       ...THEMES.map((t) => ({ id: `t-${t.id}`, label: `테마 바꾸기 · ${t.label}`, hint: "모양", run: () => { actions.setShared({ theme: t.id }, `테마: ${t.label}`); void saveConfig({ theme: t.id }); } })),
       ...rep.list("task", (t) => t.day === today).map((t) => ({ id: `task-${t.id}`, label: t.title, hint: t.done ? "오늘 할 일 · 완료" : "오늘 할 일", run: () => go({ screen: "today", select: t.id }) })),
     ];
     return list;
-  }, [rep, actions, platform, saveConfig, today, go]);
+  }, [rep, actions, platform, saveConfig, today, go, onHelp]);
 
   const query = q.trim().toLowerCase();
   const shown = query ? cmds.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(query)) : cmds.filter((c) => !c.id.startsWith("task-"));

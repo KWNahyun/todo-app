@@ -25,6 +25,9 @@ class TauriVaultFs implements VaultFs {
   list(prefix: string) {
     return invoke<string[]>("vault_list", { root: this.root, prefix });
   }
+  listSizes(prefix: string) {
+    return invoke<{ path: string; size: number }[]>("vault_list_sizes", { root: this.root, prefix });
+  }
   async readBytes(path: string) {
     const b64 = await invoke<string | null>("vault_read_bytes", { root: this.root, path });
     return b64 == null ? null : fromBase64(b64);

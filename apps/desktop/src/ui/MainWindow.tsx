@@ -10,6 +10,7 @@ import { Detail } from "./Detail.tsx";
 import { Left, Right } from "./icons.tsx";
 import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
+import { Help } from "./Help.tsx";
 import { Palette, type Go } from "./Palette.tsx";
 import { Records } from "./Records.tsx";
 import { Stats } from "./Stats.tsx";
@@ -95,6 +96,7 @@ export function MainWindow() {
   const [selected, setSelected] = useState<string | null>(null);
   const now = useNow(!!selected, 1000);
   const [palette, setPalette] = useState(false);
+  const [help, setHelp] = useState(false);
   const [rec, setRec] = useState<{ tab: string; dateId?: string }>({ tab: "diary" });
   const go = (s: Screen) => {
     setScreen(s);
@@ -118,6 +120,10 @@ export function MainWindow() {
         e.preventDefault();
         setPalette((p) => !p);
       }
+      if (e.key === "F1") {
+        e.preventDefault();
+        setHelp(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -134,6 +140,7 @@ export function MainWindow() {
         ))}
         <div className="grow" />
         <button className="k-hint" onClick={() => setPalette(true)}>찾기 · 실행 <small>Ctrl+K</small></button>
+        <button className="k-hint" onClick={() => setHelp(true)}>도움말 <small>F1</small></button>
         <button className={screen === "settings" ? "on" : ""} onClick={() => go("settings")}>설정</button>
         <SyncBadge onClick={() => go("settings")} />
       </nav>
@@ -152,7 +159,8 @@ export function MainWindow() {
       </main>
       {(screen === "today" || screen === "schedule") && selected && <Detail id={selected} now={now} onClose={() => setSelected(null)} />}
       <Snackbar />
-      {palette && <Palette onClose={() => setPalette(false)} go={goTo} />}
+      {palette && <Palette onClose={() => setPalette(false)} go={goTo} onHelp={() => setHelp(true)} />}
+      {help && <Help onClose={() => setHelp(false)} />}
     </div>
   );
 }
