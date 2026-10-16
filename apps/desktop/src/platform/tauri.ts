@@ -103,6 +103,8 @@ export function tauriPlatform(): Platform {
       if (!ok) ok = (await requestPermission()) === "granted";
       if (ok) sendNotification({ title, body });
     },
+    idleSeconds: () => invoke<number>("idle_seconds"),
+    showWidget: () => invoke<void>("show_widget"),
     async readImageFile(path: string) {
       return fromBase64(await invoke<string>("read_image_file", { path }));
     },

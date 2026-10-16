@@ -116,6 +116,12 @@ export function webPlatform(): Platform {
       window.open(`?view=main${screen ? `#${screen}` : ""}`, "dt-main");
     },
     async setPin() {},
+    async idleSeconds() {
+      return 0;
+    },
+    async showWidget() {
+      window.focus();
+    },
     async readImageFile() {
       throw new Error("브라우저에서는 PC 파일을 바로 읽을 수 없어요");
     },

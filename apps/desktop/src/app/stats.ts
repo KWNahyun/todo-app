@@ -120,7 +120,8 @@ export function computeStats(rep: Replica, period: Period, end: string, basis: B
   const done = all.filter((t) => t.done).length;
   const values = days.map(dayValue);
   const active = values.filter((v) => v > 0).length;
-  const pomos = tasks.reduce((a, t) => a + (t.pomos ?? 0), 0);
+  const ids = new Set(tasks.map((t) => t.id));
+  const pomos = tasks.reduce((a, t) => a + (t.pomos ?? 0), 0) + rep.list("session", (s) => s.kind === "pomodoro" && ids.has(s.taskId)).length;
   const tiles =
     basis === "time"
       ? [

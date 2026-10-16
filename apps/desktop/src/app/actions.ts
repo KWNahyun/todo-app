@@ -347,6 +347,92 @@ export class Actions {
     return r.id;
   }
 
+  // ---------- 날짜 넘기기 · 자리 비움 (v1 copy_task · split_at_midnight · AwayDialog) ----------
+
+  /** 할 일을 다른 날로 복사 (같은 묶음 이름 아래, 이미 같은 할 일이 있으면 그것) → 그 날의 할 일 ID */
+  private copyTaskTo(taskId: string, day: string): string {
+    const t = this.rep.get<"task">(taskId)!;
+    const parent = t.parentId ? this.rep.get<"task">(t.parentId) : undefined;
+    const top = this.topLevel(day);
+    let pid: string | null = null;
+    if (parent) {
+      pid = top.find((x) => x.title === parent.title)?.id ?? null;
+      if (!pid) pid = this.rep.create("task", { day, title: parent.title, done: false, order: this.orderAfterLast(top) });
+    }
+    const sibs = pid ? this.rep.list("task", (x) => x.parentId === pid).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1)) : this.topLevel(day);
+    const same = sibs.find((x) => x.title === t.title && !x.done);
+    if (same) return same.id;
+    return this.rep.create("task", {
+      day, title: t.title, done: false, parentId: pid, order: this.orderAfterLast(sibs),
+      note: t.note ?? "", estimateMin: t.estimateMin ?? null, ref: t.ref ?? null,
+    });
+  }
+
+  /** 오늘 정리하기: 고른 할 일을 다음 날로 (타이머는 멈춤) → 넘긴 수 */
+  carryTo(taskIds: string[], day: string): number {
+    if (!taskIds.length) return 0;
+    const running = this.rep.list("session", (s) => taskIds.includes(s.taskId) && s.end == null).map((s) => s.id);
+    this.track(`내일로 ${taskIds.length}개 넘김`, [...taskIds, ...running], () => {
+      const made = taskIds.map((id) => {
+        stopTask(this.rep, id, this.now());
+        return this.copyTaskTo(id, day);
+      });
+      return made;
+    });
+    return taskIds.length;
+  }
+
+  /**
+   * 자정 넘기기: 지난 날의 할 일을 재는 중이면 그날 자정에 끊고, 바로 이어서 잰 거면 오늘의 같은 할 일로 이어 잼.
+   * 하루 넘게 켜져 있었으면 이어 재지 않음 (자리 비움 확인이 먼저 물어봄).
+   */
+  splitAtMidnight(): number {
+    const now = this.now();
+    const today = dayOf(new Date(now));
+    const todayStart = new Date(new Date(now).setHours(0, 0, 0, 0)).getTime();
+    let n = 0;
+    for (const s of this.rep.list("session", (x) => x.end == null && x.deviceId === this.pcId)) {
+      const t = this.rep.get<"task">(s.taskId);
+      if (!t || t.day >= today) continue;
+      const startDay = new Date(s.start);
+      const midnight = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + 1).getTime();
+      this.rep.update<"session">(s.id, { end: Math.max(s.start, midnight) });
+      if (midnight === todayStart) {
+        const id = this.copyTaskTo(t.id, today);
+        this.rep.create("session", { taskId: id, start: todayStart, end: null, deviceId: this.pcId, kind: s.kind });
+      }
+      n++;
+    }
+    return n;
+  }
+
+  /** 자리 비움 확인의 답: since 에 멈춘 것으로 (resume 이면 지금부터 다시 — 날이 바뀌었으면 오늘의 같은 할 일로) */
+  cutAway(sessionIds: string[], since: number, resume: boolean): void {
+    const now = this.now();
+    const today = dayOf(new Date(now));
+    this.track(resume ? "비운 시간 빼고 계속" : "비운 시간 빼고 멈춤", sessionIds, () => {
+      const made: string[] = [];
+      for (const sid of sessionIds) {
+        const s = this.rep.get<"session">(sid);
+        if (!s || s.end != null) continue;
+        this.rep.update<"session">(sid, { end: Math.max(s.start, since) });
+        if (resume) {
+          const t = this.rep.get<"task">(s.taskId);
+          const id = t && t.day !== today ? this.copyTaskTo(t.id, today) : s.taskId;
+          made.push(this.rep.create("session", { taskId: id, start: now, end: null, deviceId: this.pcId, kind: s.kind }));
+        }
+      }
+      return made;
+    });
+  }
+
+  /** 뽀모도로 집중이 끝남: 그 시각에 멈추고 뽀모도로 한 번으로 기록 */
+  finishPomodoro(sessionId: string, end: number): void {
+    const s = this.rep.get<"session">(sessionId);
+    if (!s || s.end != null) return;
+    this.rep.update<"session">(sessionId, { end: Math.max(s.start, end), kind: "pomodoro" });
+  }
+
   // ---------- 세션 ----------
 
   updateSession(id: string, fields: { start?: number; end?: number | null }): void {

@@ -8,7 +8,9 @@ import type { PinMode } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right } from "./icons.tsx";
 import { EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
+import { MoodPicker } from "./Records.tsx";
 import { TaskList } from "./TaskList.tsx";
+import { AwayOverlay, HabitChips, PomoBar, ReviewSheet, useGuard } from "./WidgetGuard.tsx";
 
 const PIN_NEXT: Record<PinMode, PinMode> = { normal: "top", top: "desktop", desktop: "normal" };
 const PIN_LABEL: Record<PinMode, string> = { normal: "보통 창", top: "항상 위", desktop: "바탕화면 고정" };
@@ -42,9 +44,17 @@ export function Widget() {
   const [follow, setFollow] = useState(true);
   const [logOpen, setLogOpen] = useState(true);
   const [cal, setCal] = useState(false);
+  const [review, setReview] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const guard = useGuard();
   useEffect(() => {
     if (follow) setDay(today);
   }, [today, follow]);
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(h);
+  }, [toast]);
   const go = (d: string) => {
     setDay(d);
     setFollow(d === today);
@@ -105,21 +115,42 @@ export function Widget() {
         </div>
 
         {events.length > 0 && <EventList day={day} now={now} limit={4} />}
+        {guard.pomo && <PomoBar pomo={guard.pomo} setPomo={guard.setPomo} />}
         <InputLine day={day} today={today} />
         <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
         <TaskList tree={tree} now={now} compact />
 
-        <button className="sechead" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>
-          <span>{logOpen ? "▾" : "▸"} 오늘의 기록</span>
-        </button>
-        {logOpen && <TimelinePreview day={day} now={now} limit={4} />}
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <button className="sechead" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>
+            <span>{logOpen ? "▾" : "▸"} 오늘의 기록</span>
+          </button>
+          {logOpen && <MoodPicker day={day} />}
+        </div>
+        {logOpen && (
+          <>
+            <HabitChips day={day} />
+            <TimelinePreview day={day} now={now} limit={4} />
+          </>
+        )}
       </main>
 
       <footer className="w-foot">
         <span>완료 {done}/{total} · 총 <span className="num">{clock(dayTotal(rep, tree, now))}</span></span>
-        <button className="btn btn-ghost" onClick={() => void platform.showMain("settings")}>설정</button>
+        <span className="row" style={{ gap: 4 }}>
+          <button className="btn" onClick={() => setReview(true)}>정리하기</button>
+          <button className="btn btn-ghost" onClick={() => void platform.showMain("settings")}>설정</button>
+        </span>
       </footer>
       <Snackbar />
+      {toast && <div className="snack upper" role="status"><span>{toast}</span></div>}
+      {review && (
+        <ReviewSheet day={day} onClose={() => setReview(false)} onDone={(msg) => {
+          guard.markReviewed(day);
+          setReview(false);
+          setToast(msg);
+        }} />
+      )}
+      {guard.away && <AwayOverlay away={guard.away} onPick={guard.resolveAway} />}
     </div>
   );
 }

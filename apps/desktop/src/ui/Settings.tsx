@@ -4,6 +4,26 @@ import { dayTotalsMs, importV1, type DeviceInfo, type V1Data, type V1Summary } f
 import { clock } from "../app/dates.ts";
 import { useApp, useSync } from "../app/store.tsx";
 
+function NumberSetting({ id, label, value, onSave, hint, min = 0 }: { id: string; label: string; value: number; onSave: (v: number) => void; hint?: string; min?: number }) {
+  const [v, setV] = useState(String(value));
+  useEffect(() => setV(String(value)), [value]);
+  return (
+    <div className="stack" style={{ gap: 4 }}>
+      <label className="label" htmlFor={id}>{label}</label>
+      <div className="row">
+        <input id={id} className="field" style={{ width: 120 }} inputMode="numeric" value={v}
+          onChange={(e) => setV(e.target.value.replace(/[^\d.]/g, ""))}
+          onBlur={() => {
+            const n = Number(v);
+            if (v !== "" && Number.isFinite(n) && n >= min && n !== value) onSave(n);
+            else setV(String(value));
+          }} />
+        {hint && <span className="muted" style={{ fontSize: 13 }}>{hint}</span>}
+      </div>
+    </div>
+  );
+}
+
 function Devices() {
   const { rep } = useApp();
   const [list, setList] = useState<DeviceInfo[]>([]);
@@ -129,7 +149,6 @@ export function Settings() {
   const sync = useSync();
   const [root, setRoot] = useState(config.vaultRoot ?? "");
   const [name, setName] = useState(config.deviceName);
-  const [remind, setRemind] = useState(String(config.remindMin ?? 10));
   const theme = config.theme ?? "minimal";
 
   return (
@@ -147,14 +166,28 @@ export function Settings() {
       </section>
 
       <section>
-        <h2>알림</h2>
-        <label className="label" htmlFor="remind">일정 알림 (분 전, 0 이면 끔)</label>
-        <div className="row">
-          <input id="remind" className="field" style={{ width: 120 }} inputMode="numeric" value={remind}
-            onChange={(e) => setRemind(e.target.value.replace(/\D/g, ""))}
-            onBlur={() => remind !== "" && Number(remind) !== (config.remindMin ?? 10) && void saveConfig({ remindMin: Number(remind) })} />
-          <span className="muted" style={{ fontSize: 13 }}>일정마다 따로 정하려면 일정을 눌러 상세에서.</span>
-        </div>
+        <h2>타이머 · 알림</h2>
+        <NumberSetting id="remind" label="일정 알림 (분 전, 0 이면 끔)" value={config.remindMin ?? 10} onSave={(v) => saveConfig({ remindMin: v })}
+          hint="일정마다 따로 정하려면 일정을 눌러 상세에서." />
+        <NumberSetting id="idle" label="자리 비움 확인 (분 동안 입력이 없으면, 0 이면 끔)" value={config.idleMin ?? 10} onSave={(v) => saveConfig({ idleMin: v })}
+          hint="타이머가 켜진 채 자리를 비웠다 돌아오면, 그 시간을 뺄지 물어봐요. 절전 · 앱이 꺼져 있던 동안도." />
+        <NumberSetting id="long" label="오래 켜진 타이머 알림 (시간, 0 이면 끔)" value={config.longHours ?? 2} onSave={(v) => saveConfig({ longHours: v })} />
+        <label className="label" htmlFor="review">오늘 정리하기 알림 시각 (비우면 끔)</label>
+        <input id="review" type="time" className="field" style={{ width: 140 }} defaultValue={config.reviewTime ?? "22:00"}
+          onBlur={(e) => e.target.value !== (config.reviewTime ?? "22:00") && void saveConfig({ reviewTime: e.target.value })} />
+        <label className="row" style={{ gap: 8, fontSize: 14, marginTop: 6 }}>
+          <input type="checkbox" checked={!!config.pomo?.on} onChange={(e) => void saveConfig({ pomo: { ...config.pomo, on: e.target.checked } })} />
+          뽀모도로 — 타이머를 켜면 집중 {config.pomo?.focus ?? 25}분 → 휴식 {config.pomo?.brk ?? 5}분 (4번마다 {config.pomo?.long ?? 15}분)
+        </label>
+        {config.pomo?.on && (
+          <div className="form-grid">
+            {(["focus", "brk", "long", "every"] as const).map((k) => (
+              <NumberSetting key={k} id={`pomo-${k}`} label={{ focus: "집중 (분)", brk: "휴식 (분)", long: "긴 휴식 (분)", every: "긴 휴식 간격 (회)" }[k]}
+                value={config.pomo?.[k] ?? { focus: 25, brk: 5, long: 15, every: 4 }[k]} min={1}
+                onSave={(v) => saveConfig({ pomo: { on: true, ...config.pomo, [k]: v } })} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section>

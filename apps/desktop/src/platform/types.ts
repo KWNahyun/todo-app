@@ -21,6 +21,14 @@ export interface Config {
   pin?: PinMode;
   /** 일정 알림 기본값 (분 전, 0 이면 끔) */
   remindMin?: number;
+  /** 뽀모도로 (분) */
+  pomo?: { on: boolean; focus?: number; brk?: number; long?: number; every?: number };
+  /** 이만큼(분) 입력이 없으면 자리 비움으로 보고 돌아왔을 때 물어봄 (0 이면 끔, 기본 10) */
+  idleMin?: number;
+  /** 타이머가 이만큼(시간) 켜져 있으면 알림 (0 이면 끔, 기본 2) */
+  longHours?: number;
+  /** 이 시각 넘으면 '오늘 정리하기' 알림 (빈 값이면 끔, 기본 22:00) */
+  reviewTime?: string;
 }
 
 export interface Platform {
@@ -41,6 +49,10 @@ export interface Platform {
   setPin(mode: PinMode): Promise<void>;
   /** PC 의 그림 파일 읽기 (v1 기록장 사진 가져오기용, 웹에선 안 됨) */
   readImageFile(path: string): Promise<Uint8Array>;
+  /** 마지막 입력 뒤 지난 초 (자리 비움, 웹에선 0) */
+  idleSeconds(): Promise<number>;
+  /** 위젯 창을 앞으로 */
+  showWidget(): Promise<void>;
   /** OS 알림 (권한이 없으면 조용히 넘어감) */
   notify(title: string, body: string): Promise<void>;
   minimize(): Promise<void>;

@@ -242,6 +242,49 @@ fn ensure_config(app: &AppHandle) -> Res<()> {
     write_atomic(&p, &serde_json::to_string_pretty(&cfg).map_err(err)?)
 }
 
+/// 마지막 키보드 · 마우스 입력 뒤 지난 초 (자리 비움 감지 — v1 winapi.idle_seconds)
+#[tauri::command]
+fn idle_seconds() -> u64 {
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct LastInputInfo {
+            cb_size: u32,
+            dw_time: u32,
+        }
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetLastInputInfo(plii: *mut LastInputInfo) -> i32;
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetTickCount() -> u32;
+        }
+        let mut li = LastInputInfo { cb_size: std::mem::size_of::<LastInputInfo>() as u32, dw_time: 0 };
+        // SAFETY: 크기를 채운 구조체 포인터를 넘기는 Win32 호출
+        unsafe {
+            if GetLastInputInfo(&mut li) == 0 {
+                return 0;
+            }
+            (GetTickCount().wrapping_sub(li.dw_time) / 1000) as u64
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        0
+    }
+}
+
+/// 위젯을 앞으로 (자리 비움 확인처럼 꼭 봐야 할 때)
+#[tauri::command]
+fn show_widget(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("widget") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 /// 메인 창 보이기 (위젯의 "메인 창" 버튼, 두 번째 실행)
 #[tauri::command]
 fn show_main(app: AppHandle) {
@@ -266,7 +309,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             vault_read, vault_write, vault_append, vault_list, vault_read_bytes, vault_write_bytes, read_image_file,
-            local_read, local_write, config_read, default_vault_root, v1_read, show_main
+            local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
