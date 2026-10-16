@@ -180,9 +180,13 @@ export class Actions {
     const t = this.rep.get<"task">(id);
     if (!t) return;
     const done = !t.done;
-    this.track(done ? `'${t.title}' 완료` : `'${t.title}' 완료 취소`, [id, ...this.runningIds(id)], () => {
+    // 만다라트 실천 칸에서 온 할 일이면 칸도 같이 (v1)
+    const m = /^mandala\/(\d)\/(\d)$/.exec(t.ref ?? "");
+    const mid = m ? this.mandalaId() : null;
+    this.track(done ? `'${t.title}' 완료` : `'${t.title}' 완료 취소`, [id, ...this.runningIds(id), ...(mid ? [mid] : [])], () => {
       this.rep.update<"task">(id, { done, doneAt: done ? this.now() : null });
       if (done) stopTask(this.rep, id, this.now()); // 완료하면 타이머 정지
+      if (m && mid) this.rep.put(mid, "mandala", { [`done.${m[1]}.${m[2]}`]: done });
     });
   }
 
@@ -287,6 +291,60 @@ export class Actions {
       return [id];
     });
     return id;
+  }
+
+  /** 아무 종류나 새로 (목표 · 습관 등) */
+  create(type: string, fields: Record<string, unknown>, label: string, id?: string): string {
+    let made = "";
+    this.track(label, [], () => {
+      made = id ?? this.rep.create(type as never, fields as never);
+      if (id) this.rep.put(id, type, fields);
+      return [made];
+    });
+    return made;
+  }
+
+  /** 습관 체크 켜고 끄기 (체크 하나 = 항목 하나, ID 를 날짜로 정해 두 기기가 같은 날 중복으로 안 만듦) */
+  toggleHabit(habitId: string, day: string): void {
+    const h = this.rep.get<"habit">(habitId);
+    if (!h) return;
+    const cur = this.rep.list("habitCheck", (c) => c.habitId === habitId && c.day === day);
+    if (cur.length) {
+      this.track(`'${h.name}' 체크 해제`, cur.map((c) => c.id), () => cur.forEach((c) => this.rep.remove(c.id)));
+    } else {
+      const id = `hc-${habitId}-${day}`.slice(0, 64);
+      this.track(`'${h.name}' 체크`, [id], () => this.rep.put(id, "habitCheck", { habitId, day }));
+    }
+  }
+
+  /** 습관 지우기: 체크 기록까지 */
+  removeHabit(habitId: string): void {
+    const h = this.rep.get<"habit">(habitId);
+    if (!h) return;
+    const ids = [habitId, ...this.rep.list("habitCheck", (c) => c.habitId === habitId).map((c) => c.id)];
+    this.track(`습관 '${h.name}' 지움`, ids, () => ids.forEach((x) => this.rep.remove(x)));
+  }
+
+  // ---------- 만다라트 ----------
+
+  /** 만다라트 하나 (가져온 것이 있으면 그것) */
+  mandalaId(): string {
+    return this.rep.list("mandala")[0]?.id ?? "mandala-main";
+  }
+
+  setMandalaCell(field: string, value: string | boolean, label = "만다라트 고침"): void {
+    const id = this.mandalaId();
+    this.track(label, [id], () => this.rep.put(id, "mandala", { [field]: value }));
+  }
+
+  /** 실천 칸 → 오늘 할 일 '세부목표 > 실천' (v1 과 같음, 완료하면 칸도 완료) */
+  mandalaToTask(s: number, a: number, sub: string, action: string, day: string): string | null {
+    const ref = `mandala/${s}/${a}`;
+    if (this.rep.list("task", (t) => t.ref === ref && !t.done && t.day === day).length) return null;
+    const r = this.add(`${sub || "만다라트"} > ${action}`, day);
+    if (!r.ok) return null;
+    this.rep.update<"task">(r.id, { ref });
+    return r.id;
   }
 
   // ---------- 세션 ----------

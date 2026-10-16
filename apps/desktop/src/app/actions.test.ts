@@ -117,6 +117,21 @@ describe("동작 · 되돌리기", () => {
     expect(rep.get<"task">(r.id)!.note).toBeNull();
   });
 
+  it("만다라트 실천 칸 → 할 일, 완료하면 칸도 완료 · 되돌리면 같이", async () => {
+    const { rep, a } = await setup();
+    a.setMandalaCell("center", "건강");
+    a.setMandalaCell("subs.2", "운동");
+    a.setMandalaCell("actions.2.5", "30분 걷기");
+    const id = a.mandalaToTask(2, 5, "운동", "30분 걷기", DAY)!;
+    expect(a.mandalaToTask(2, 5, "운동", "30분 걷기", DAY)).toBeNull(); // 이미 있음
+    expect(titles(rep)).toEqual(["운동", "  30분 걷기"]);
+    a.toggleDone(id);
+    const m = () => rep.get<"mandala">(a.mandalaId())!;
+    expect(m().done?.["2"]?.["5"]).toBe(true);
+    a.undo();
+    expect(m().done?.["2"]?.["5"]).toBeFalsy(); // 처음엔 없던 칸이라 비움(null) — mandalaGrid 에선 false
+  });
+
   it("진행률 · 타임라인", async () => {
     const { rep, a, clock } = await setup();
     a.add("KAMP > 모델링", DAY);

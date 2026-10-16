@@ -200,6 +200,9 @@ export function AppProvider({ platform, children }: { platform: Platform; childr
     );
   }, [platform]);
 
+  // 개발 중에만: 브라우저에서 시험 데이터를 넣고 확인할 수 있게 (빌드에는 안 들어감)
+  if (import.meta.env.DEV && app) (window as unknown as { __dt: unknown }).__dt = app;
+
   const engine = app?.engine;
   useEffect(() => engine?.start(), [engine]);
 
