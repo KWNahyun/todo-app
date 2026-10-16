@@ -7,6 +7,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import type { V1Data, VaultFs } from "@dailytodo/core";
 import type { Config, HotkeyAction, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
 import { fromBase64, toBase64 } from "./base64.ts";
+import { loadTokens, phoneVault, saveTokens } from "./phone.ts";
 
 class TauriVaultFs implements VaultFs {
   private root: string;
@@ -52,9 +53,22 @@ const V1_KEYS: Record<string, keyof V1Data> = {
 export function tauriPlatform(): Platform {
   const win = getCurrentWindow();
   const kind = win.label as WindowKind;
+  const phone = kind === "phone";
   return {
     kind: "tauri",
     window: kind,
+    // 휴대폰: 보관함 = OneDrive 앱 전용 폴더(Graph), 로그인 필요
+    ...(phone
+      ? {
+          async needsLogin() {
+            return !(await loadTokens());
+          },
+          async signOut() {
+            await saveTokens(null);
+            location.reload();
+          },
+        }
+      : {}),
     async readConfig() {
       // Rust 가 처음이면 PC ID 를 만들어 둔 뒤 돌려줌 (두 창이 동시에 불러도 한 번만)
       const text = await invoke<string>("config_read");
@@ -70,10 +84,10 @@ export function tauriPlatform(): Platform {
       return invoke("local_write", { name: `local-${kind}.json`, text });
     },
     defaultVaultRoot() {
-      return invoke<string>("default_vault_root");
+      return phone ? Promise.resolve("OneDrive 앱 폴더") : invoke<string>("default_vault_root");
     },
     vaultFs(root: string) {
-      return new TauriVaultFs(root);
+      return phone ? phoneVault() : new TauriVaultFs(root);
     },
     async readV1() {
       const r = await invoke<[string, Record<string, string>] | null>("v1_read");
@@ -96,10 +110,12 @@ export function tauriPlatform(): Platform {
       void emit(event, { from: kind, payload });
     },
     async showMain(screen?: Screen, select?: string) {
+      if (phone) return;
       await invoke("show_main");
       if (screen) void emit("open-screen", { from: kind, payload: select ? `${screen}|${select}` : screen });
     },
     async setPin(mode: PinMode) {
+      if (phone) return;
       await win.setAlwaysOnBottom(mode === "desktop");
       await win.setAlwaysOnTop(mode === "top");
     },
@@ -109,6 +125,7 @@ export function tauriPlatform(): Platform {
       if (ok) sendNotification({ title, body });
     },
     async setHotkeys(keys, onPress) {
+      if (phone) return []; // 휴대폰엔 전역 단축키가 없음
       await unregisterAll();
       const failed: string[] = [];
       for (const [action, acc] of Object.entries(keys)) {
@@ -128,8 +145,8 @@ export function tauriPlatform(): Platform {
       if (!url.startsWith("https://")) return;
       await openUrl(url);
     },
-    idleSeconds: () => invoke<number>("idle_seconds"),
-    showWidget: () => invoke<void>("show_widget"),
+    idleSeconds: () => (phone ? Promise.resolve(0) : invoke<number>("idle_seconds")),
+    showWidget: () => (phone ? Promise.resolve() : invoke<void>("show_widget")),
     async readImageFile(path: string) {
       return fromBase64(await invoke<string>("read_image_file", { path }));
     },

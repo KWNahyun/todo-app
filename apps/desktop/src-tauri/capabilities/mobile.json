@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "휴대폰: 알림 · 브라우저 열기(로그인 페이지) · OneDrive(Microsoft Graph) 주고받기 — 마이크로소프트 주소만",
+  "platforms": ["android", "iOS"],
+  "windows": ["phone"],
+  "permissions": [
+    "core:default",
+    "notification:default",
+    "opener:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://login.microsoftonline.com/*" },
+        { "url": "https://graph.microsoft.com/*" },
+        { "url": "https://api.onedrive.com/*" },
+        { "url": "https://*.1drv.com/*" },
+        { "url": "https://*.files.1drv.com/*" },
+        { "url": "https://*.livefilestore.com/*" },
+        { "url": "https://*.storage.live.com/*" },
+        { "url": "https://*.sharepoint.com/*" }
+      ]
+    }
+  ]
+}

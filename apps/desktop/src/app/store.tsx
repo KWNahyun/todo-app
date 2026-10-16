@@ -109,12 +109,16 @@ export class SyncEngine {
     const onFocus = () => void this.pull();
     window.addEventListener("focus", onFocus);
     window.addEventListener("beforeunload", this.saveLocal);
-    const every = setInterval(this.pull, 15_000);
+    // 휴대폰은 1분마다 + 앱으로 돌아올 때 (배터리 · 데이터 아끼기), PC 는 15초마다
+    const every = setInterval(this.pull, this.platform.window === "phone" ? 60_000 : 15_000);
+    const onVisible = () => document.visibilityState === "visible" && void this.pull();
+    document.addEventListener("visibilitychange", onVisible);
     void this.syncNow().then(() => this.snapshotDaily());
     return () => {
       offRep();
       offPeer();
       clearInterval(every);
+      document.removeEventListener("visibilitychange", onVisible);
       clearTimeout(flushT);
       clearTimeout(saveT);
       window.removeEventListener("focus", onFocus);

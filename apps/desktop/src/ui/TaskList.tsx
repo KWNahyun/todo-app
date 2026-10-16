@@ -20,6 +20,8 @@ interface Props {
   /** 우클릭 '상세 편집' (메인 창은 상세 패널, 위젯은 메인 창을 열어서) */
   onDetail?: (id: string) => void;
   compact?: boolean;
+  /** 휴대폰: 타이머 버튼 없음(첫 버전은 PC 에서만), 끌어서 정렬 대신 손가락 스크롤 — 길게 누르면 메뉴 */
+  phone?: boolean;
 }
 
 interface Drag {
@@ -52,7 +54,7 @@ function ChildInput({ parentId, onClose }: { parentId: string; onClose: () => vo
   );
 }
 
-export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: Props) {
+export function TaskList({ tree, now, selected, onSelect, onDetail, compact, phone }: Props) {
   const { actions, rep } = useApp();
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -75,7 +77,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: P
     [...(box.current?.querySelectorAll<HTMLElement>(`[data-parent="${parent}"]`) ?? [])];
 
   const onDown = (e: RPointerEvent, t: Task, parent: string) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+    if (phone || e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
     setDrag({ id: t.id, parent, startY: e.clientY, active: false, index: -1, lineY: null });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -116,7 +118,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: P
     const top = !t.parentId || !rep.get(t.parentId);
     const items: MenuItem[] = [
       { label: t.done ? "완료 취소" : "완료", onClick: () => actions.toggleDone(t.id) },
-      ...(leaf && !t.done ? [{ label: isRunning(rep, t.id) ? "타이머 정지" : "타이머 시작", onClick: () => actions.toggleTimer(t.id) }] : []),
+      ...(leaf && !t.done && !phone ? [{ label: isRunning(rep, t.id) ? "타이머 정지" : "타이머 시작", onClick: () => actions.toggleTimer(t.id) }] : []),
       { label: "상세 편집 (메모 · 예상 시간)", onClick: () => (onDetail ?? onSelect)?.(t.id) },
       { label: "", separator: true },
     ];
@@ -217,7 +219,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: P
         {kids.length > 0 && (
           <button className="icon-btn add-child" title="하위 할 일 추가" aria-label={`${t.title} 아래에 하위 할 일 추가`} onClick={() => setAdding(t.id)}>+</button>
         )}
-        {!kids.length && !t.done && (
+        {!phone && !kids.length && !t.done && (
           <button className={`btn${running ? " btn-active" : ""}`} onClick={() => actions.toggleTimer(t.id)}>
             {running ? <><Pause /> {compact ? "" : "정지"}</> : <><Play /> {compact ? "" : "시작"}</>}
           </button>
@@ -227,7 +229,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact }: P
   };
 
   return (
-    <div className="tasks" ref={box}>
+    <div className={`tasks${phone ? " phone-tasks" : ""}`} ref={box}>
       {tree.map((n) => [
         row(n.task, "", { group: n.children.length ? n : undefined }),
         ...(!n.task.collapsed || adding === n.task.id ? n.children.map((c) => row(c, n.task.id, { child: true })) : []),

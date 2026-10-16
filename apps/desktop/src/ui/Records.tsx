@@ -249,7 +249,7 @@ export function Stars({ value, onChange }: { value: number; onChange?: (n: numbe
   );
 }
 
-function DateCard({ r, on, onClick }: { r: RecordItem; on: boolean; onClick: () => void }) {
+export function DateCard({ r, on, onClick }: { r: RecordItem; on: boolean; onClick: () => void }) {
   const cover = r.f?.photos?.[0];
   return (
     <button className={`date-card${on ? " on" : ""}`} onClick={onClick}>
@@ -277,7 +277,7 @@ export function Field({ label, value, onSave, placeholder, inputMode }: { label:
   );
 }
 
-function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
+export function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void }) {
   const { actions } = useApp();
   const [note, change, flush] = useAutosave(r.note ?? "", (v) => actions.update(r.id, { note: v }, "이야기 고침"));
   useEffect(() => () => flush(), [r.id]);

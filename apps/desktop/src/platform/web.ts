@@ -70,7 +70,8 @@ class StoredFs implements VaultFs {
 }
 
 export function webPlatform(): Platform {
-  const kind: WindowKind = new URLSearchParams(location.search).get("view") === "widget" ? "widget" : "main";
+  const view = new URLSearchParams(location.search).get("view");
+  const kind: WindowKind = view === "widget" ? "widget" : view === "phone" ? "phone" : "main";
   const ch = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(KEY) : null;
   return {
     kind: "web",

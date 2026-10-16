@@ -4,7 +4,8 @@
  */
 import type { V1Data, VaultFs } from "@dailytodo/core";
 
-export type WindowKind = "main" | "widget";
+/** PC: 위젯 · 메인 창, 휴대폰: phone (창 하나) */
+export type WindowKind = "main" | "widget" | "phone";
 /** 이 PC 에 마지막으로 쓴 테마 (같이 쓰는 설정이 우선 — app/appearance.ts) */
 export type ThemeName = string;
 /** 위젯 창: 보통 · 항상 위 · 바탕화면 고정 */
@@ -69,6 +70,10 @@ export interface Platform {
   setHotkeys(keys: Partial<Record<HotkeyAction, string>>, onPress: (a: HotkeyAction) => void): Promise<string[]>;
   /** 파일로 내보내기: 저장 창 → 고른 곳에 저장 → 저장한 경로 (취소하면 null) */
   saveExport(name: string, ext: "md" | "csv" | "json" | "png", bytes: Uint8Array): Promise<string | null>;
+  /** 휴대폰: OneDrive 연결 끊기 (다시 로그인) */
+  signOut?: () => Promise<void>;
+  /** 휴대폰: 아직 OneDrive 에 로그인 안 함 → 로그인 화면부터 */
+  needsLogin?: () => Promise<boolean>;
   /** 기본 브라우저로 주소 열기 (지도 등, https 만) */
   openUrl(url: string): Promise<void>;
   /** 위젯 창을 앞으로 */

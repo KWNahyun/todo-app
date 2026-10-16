@@ -36,8 +36,8 @@ export function MiniCalendar({ value, today, onPick }: { value: string; today: s
             <button key={d} className={cls} onClick={() => onPick(d)} aria-label={d} aria-pressed={d === value}>
               {toDate(d).getDate()}
               <i className="dots">
-                {it.events.length > 0 && <i className="dot ev" />}
-                {it.deadlines.length > 0 && <i className="dot dl" />}
+                {it.events.length > 0 && <i className="dot dot-ev" />}
+                {it.deadlines.length > 0 && <i className="dot dot-dl" />}
               </i>
             </button>
           );

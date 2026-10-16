@@ -153,7 +153,8 @@ fn vault_list_sizes(root: String, prefix: String) -> Res<Vec<Sized>> {
         .collect())
 }
 
-const LOCAL_NAMES: &[&str] = &["config.json", "local-main.json", "local-widget.json"];
+/// 휴대폰: local-phone.json(복제본) · auth.json(OneDrive 로그인 토큰 — 앱 전용 저장소에만)
+const LOCAL_NAMES: &[&str] = &["config.json", "local-main.json", "local-widget.json", "local-phone.json", "auth.json"];
 
 fn local_path(app: &AppHandle, name: &str) -> Res<PathBuf> {
     if !LOCAL_NAMES.contains(&name) {
@@ -255,8 +256,9 @@ fn ensure_config(app: &AppHandle) -> Res<()> {
             c
         })
         .collect();
-    cfg.insert("deviceBase".into(), format!("pc-{id}").into());
-    let name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "PC".into());
+    let kind = if cfg!(mobile) { "phone" } else { "pc" };
+    cfg.insert("deviceBase".into(), format!("{kind}-{id}").into());
+    let name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| if cfg!(mobile) { "휴대폰".into() } else { "PC".into() });
     cfg.entry("deviceName").or_insert(name.into());
     write_atomic(&p, &serde_json::to_string_pretty(&cfg).map_err(err)?)
 }
@@ -341,7 +343,10 @@ fn show_main(app: AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // PC 에서만: 한 번만 실행 · 창 위치 기억 · 전역 단축키
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // 이미 켜져 있으면 새로 띄우지 않고 위젯 · 메인 창을 앞으로
             if let Some(w) = app.get_webview_window("widget") {
@@ -350,10 +355,12 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    builder
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             vault_read, vault_write, vault_append, vault_list, vault_list_sizes, vault_read_bytes, vault_write_bytes, read_image_file,
             local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds, save_export

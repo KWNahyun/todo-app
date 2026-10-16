@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "phone",
+        "title": "Daily Todo",
+        "url": "index.html?view=phone"
+      }
+    ]
+  }
+}

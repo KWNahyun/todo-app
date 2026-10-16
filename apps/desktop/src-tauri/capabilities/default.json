@@ -1,7 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "위젯 · 메인 창: 창 다루기, 창 사이 알림",
+  "description": "PC 위젯 · 메인 창: 창 다루기, 창 사이 알림, 전역 단축키",
+  "platforms": ["windows", "macOS", "linux"],
   "windows": ["widget", "main"],
   "permissions": [
     "core:default",
