@@ -1,6 +1,6 @@
 [package]
 name = "dailytodo"
-version = "0.2.0"
+version = "0.3.0"
 description = "Daily Todo v2"
 edition = "2021"
 
