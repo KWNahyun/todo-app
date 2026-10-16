@@ -150,6 +150,26 @@ export class Actions {
     return { ok: true, kind: p.kind, id };
   }
 
+  /** 일정표에서: 이미 해석한 일정 · 마감 추가 */
+  addDated(p: { kind: "event"; day: string; time: string | null; title: string } | { kind: "deadline"; date: string; title: string }): string {
+    let id = "";
+    if (p.kind === "event") {
+      this.track(`일정 '${p.title}' 추가`, [], () => [(id = this.rep.create("event", { day: p.day, time: p.time, title: p.title }))]);
+    } else {
+      this.track(`마감 '${p.title}' 추가`, [], () => [(id = this.rep.create("deadline", { date: p.date, title: p.title }))]);
+    }
+    return id;
+  }
+
+  /** 일정 · 마감을 다른 날로 (끌어 놓기) */
+  moveToDay(id: string, day: string): void {
+    const x = this.rep.get(id) as { type: string; title?: string; day?: string; date?: string } | undefined;
+    if (!x) return;
+    const field = x.type === "deadline" ? "date" : x.type === "event" ? "day" : null;
+    if (!field || x[field] === day) return;
+    this.track(`'${x.title ?? ""}' 날짜 옮김`, [id], () => this.rep.put(id, x.type, { [field]: day }));
+  }
+
   // ---------- 할 일 ----------
 
   private runningIds(taskId: string): string[] {

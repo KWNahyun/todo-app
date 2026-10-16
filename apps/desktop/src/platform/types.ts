@@ -19,6 +19,8 @@ export interface Config {
   vaultRoot?: string;
   theme?: ThemeName;
   pin?: PinMode;
+  /** 일정 알림 기본값 (분 전, 0 이면 끔) */
+  remindMin?: number;
 }
 
 export interface Platform {
@@ -37,6 +39,8 @@ export interface Platform {
   emit(event: PeerEvent, payload?: string): void;
   showMain(screen?: Screen): Promise<void>;
   setPin(mode: PinMode): Promise<void>;
+  /** OS 알림 (권한이 없으면 조용히 넘어감) */
+  notify(title: string, body: string): Promise<void>;
   minimize(): Promise<void>;
   close(): Promise<void>;
 }

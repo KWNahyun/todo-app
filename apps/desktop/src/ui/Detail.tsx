@@ -36,7 +36,111 @@ function SessionRow({ s, now }: { s: Session; now: number }) {
   );
 }
 
-export function Detail({ id, now, onClose }: { id: string; now: number; onClose: () => void }) {
+interface PanelProps {
+  id: string;
+  now: number;
+  onClose: () => void;
+}
+
+/** 고른 항목의 종류에 맞는 상세 패널 */
+export function Detail(p: PanelProps) {
+  const { rep } = useApp();
+  const type = rep.get(p.id)?.type;
+  if (type === "event") return <EventDetail {...p} />;
+  if (type === "deadline") return <DeadlineDetail {...p} />;
+  if (type === "task") return <TaskDetail {...p} />;
+  return null;
+}
+
+function PanelHead({ label, onClose }: { label: string; onClose: () => void }) {
+  return (
+    <div className="panel-head">
+      <span className="label">{label}</span>
+      <button className="icon-btn" aria-label="닫기" onClick={onClose}><Close /></button>
+    </div>
+  );
+}
+
+function TitleInput({ id, value, label }: { id: string; value: string; label: string }) {
+  const { actions } = useApp();
+  const [title, setTitle] = useDraft(value);
+  return (
+    <input className="title-input" value={title} aria-label={label}
+      onChange={(e) => setTitle(e.target.value)}
+      onBlur={() => title.trim() && title !== value && actions.update(id, { title: title.trim() }, "제목 고침")}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
+function EventDetail({ id, onClose }: PanelProps) {
+  const { rep, actions, config } = useApp();
+  const e = rep.get<"event">(id);
+  const [remind, setRemind] = useDraft(e?.remindMin != null ? String(e.remindMin) : "");
+  if (!e) return null;
+  return (
+    <aside className="panel" aria-label="일정 상세">
+      <PanelHead label="일정" onClose={onClose} />
+      <TitleInput id={id} value={e.title} label="일정 이름" />
+      <label className="label" htmlFor="ev-day">날짜</label>
+      <input id="ev-day" type="date" className="field" value={e.day} onChange={(x) => x.target.value && actions.moveToDay(id, x.target.value)} />
+      <label className="label" htmlFor="ev-time">시각</label>
+      <div className="row">
+        <input id="ev-time" type="time" className="field" style={{ width: 140 }} value={e.time ?? ""} disabled={e.time == null}
+          onChange={(x) => x.target.value && actions.update(id, { time: x.target.value }, "시각 고침")} />
+        <label className="row" style={{ gap: 6, fontSize: 13 }}>
+          <input type="checkbox" checked={e.time == null}
+            onChange={(x) => actions.update(id, { time: x.target.checked ? null : "09:00" }, x.target.checked ? "시간 미정으로" : "시각 정함")} />
+          시간 미정
+        </label>
+      </div>
+      {e.time != null && (
+        <>
+          <label className="label" htmlFor="ev-remind">알림 (분 전)</label>
+          <input id="ev-remind" className="field" inputMode="numeric" style={{ width: 140 }} value={remind}
+            placeholder={`기본 ${config.remindMin ?? 10}분`}
+            onChange={(x) => setRemind(x.target.value.replace(/\D/g, ""))}
+            onBlur={() => {
+              const v = remind ? Number(remind) : null;
+              if (v !== (e.remindMin ?? null)) actions.update(id, { remindMin: v }, "알림 고침");
+            }} />
+          <div className="faint" style={{ fontSize: 12 }}>0 이면 알리지 않아요.</div>
+        </>
+      )}
+      <div className="row" style={{ marginTop: 8 }}>
+        <button className="btn" onClick={() => { actions.remove(id, `일정 '${e.title}' 지움`); onClose(); }}><Trash /> 지우기</button>
+      </div>
+    </aside>
+  );
+}
+
+function DeadlineDetail({ id, now, onClose }: PanelProps) {
+  const { rep, actions } = useApp();
+  const d = rep.get<"deadline">(id);
+  const [group, setGroup] = useDraft(d?.groupTitle ?? "");
+  if (!d) return null;
+  const today = new Date(now);
+  const groups = [...new Set(rep.list("task", (t) => !t.parentId && rep.list("task", (c) => c.parentId === t.id).length > 0).map((t) => t.title))];
+  const n = Math.round((toDate(d.date).getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000);
+  return (
+    <aside className="panel" aria-label="마감 상세">
+      <PanelHead label={`마감 · ${n === 0 ? "D-DAY" : n > 0 ? `D-${n}` : `D+${-n}`}`} onClose={onClose} />
+      <TitleInput id={id} value={d.title} label="마감 이름" />
+      <label className="label" htmlFor="dl-date">날짜</label>
+      <input id="dl-date" type="date" className="field" value={d.date} onChange={(x) => x.target.value && actions.moveToDay(id, x.target.value)} />
+      <label className="label" htmlFor="dl-group">연결한 묶음</label>
+      <input id="dl-group" className="field" list="dl-groups" value={group} placeholder="예) KAMP 경진대회"
+        onChange={(x) => setGroup(x.target.value)}
+        onBlur={() => group !== (d.groupTitle ?? "") && actions.update(id, { groupTitle: group.trim() || null }, "연결 고침")} />
+      <datalist id="dl-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
+      <div className="faint" style={{ fontSize: 12 }}>같은 이름의 묶음에 이 마감의 디데이가 붙어요.</div>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button className="btn" onClick={() => { actions.remove(id, `마감 '${d.title}' 지움`); onClose(); }}><Trash /> 지우기</button>
+      </div>
+    </aside>
+  );
+}
+
+function TaskDetail({ id, now, onClose }: PanelProps) {
   const { rep, actions } = useApp();
   const t = rep.get<"task">(id);
   const [title, setTitle] = useDraft(t?.title ?? "");

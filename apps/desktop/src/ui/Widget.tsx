@@ -1,9 +1,11 @@
 /** 위젯: 바탕화면에 늘 떠 있는 작은 창. 오늘만 보여 주고 나머지는 메인 창으로 (설계 3장) */
-import { useEffect, useState } from "react";
-import { addDays, clock, dayOf, ddayText, longDay } from "../app/dates.ts";
+import { useEffect, useRef, useState } from "react";
+import { addDays, at, clock, dayOf, ddayText, longDay, until } from "../app/dates.ts";
+import { dueReminders, reminderKey } from "../app/reminders.ts";
 import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upcomingDeadlines } from "../app/selectors.ts";
-import { useApp, useData, useNow } from "../app/store.tsx";
+import { useApp, useData, useNow, useToday } from "../app/store.tsx";
 import type { PinMode } from "../platform/index.ts";
+import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right } from "./icons.tsx";
 import { EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
 import { TaskList } from "./TaskList.tsx";
@@ -11,19 +13,35 @@ import { TaskList } from "./TaskList.tsx";
 const PIN_NEXT: Record<PinMode, PinMode> = { normal: "top", top: "desktop", desktop: "normal" };
 const PIN_LABEL: Record<PinMode, string> = { normal: "보통 창", top: "항상 위", desktop: "바탕화면 고정" };
 
-/** 오늘 날짜 (자정이 지나면 바뀜) */
-export function useToday(): string {
-  const now = useNow(true, 30_000);
-  return dayOf(new Date(now));
+/** 일정 알림 — 위젯 창만 돌림 (메인 창까지 돌리면 두 번 울림) */
+function useReminders() {
+  const { rep, platform, config } = useApp();
+  const fired = useRef(new Set<string>());
+  useEffect(() => {
+    const check = () => {
+      const now = Date.now();
+      const today = dayOf(new Date(now));
+      const events = [...eventsOf(rep, today), ...eventsOf(rep, addDays(today, 1))];
+      for (const e of dueReminders(events, now, fired.current, config.remindMin ?? 10)) {
+        fired.current.add(reminderKey(e));
+        void platform.notify(`${e.time} ${e.title}`, until(at(e.day, e.time!) - now) + " 시작해요");
+      }
+    };
+    check();
+    const h = setInterval(check, 20_000);
+    return () => clearInterval(h);
+  }, [rep, platform, config.remindMin]);
 }
 
 export function Widget() {
   const { rep, platform, config, saveConfig } = useApp();
   useData();
+  useReminders();
   const today = useToday();
   const [day, setDay] = useState(today);
   const [follow, setFollow] = useState(true);
   const [logOpen, setLogOpen] = useState(true);
+  const [cal, setCal] = useState(false);
   useEffect(() => {
     if (follow) setDay(today);
   }, [today, follow]);
@@ -66,7 +84,10 @@ export function Widget() {
       <main className="w-body">
         <div className="w-date">
           <button className="icon-btn" aria-label="전날" onClick={() => go(addDays(day, -1))}><Left /></button>
-          <h1 title="오늘로" onClick={() => go(today)}>{longDay(day)}</h1>
+          <span className="pop-anchor" style={{ flex: 1, textAlign: "center" }}>
+            <h1 title="달력" onClick={() => setCal(!cal)}>{longDay(day)}</h1>
+            {cal && <CalendarPopup value={day} today={today} onPick={go} onClose={() => setCal(false)} />}
+          </span>
           <button className="icon-btn" aria-label="다음 날" onClick={() => go(addDays(day, 1))}><Right /></button>
         </div>
 

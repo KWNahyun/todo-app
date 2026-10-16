@@ -108,6 +108,15 @@ export function webPlatform(): Platform {
       window.open(`?view=main${screen ? `#${screen}` : ""}`, "dt-main");
     },
     async setPin() {},
+    async notify(title, body) {
+      try {
+        if (typeof Notification === "undefined") return;
+        if (Notification.permission === "default") await Notification.requestPermission();
+        if (Notification.permission === "granted") new Notification(title, { body });
+      } catch {
+        // 알림을 못 띄우는 환경
+      }
+    },
     async minimize() {},
     async close() {},
   };

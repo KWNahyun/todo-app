@@ -224,6 +224,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             vault_read, vault_write, vault_append, vault_list,
             local_read, local_write, config_read, default_vault_root, v1_read, show_main

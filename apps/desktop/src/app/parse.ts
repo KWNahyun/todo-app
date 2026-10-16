@@ -99,6 +99,28 @@ export function parseInput(text: string, viewDay: string, today: string): Parsed
   return { kind: "task", title: t };
 }
 
+/**
+ * 일정표의 입력 (v1 parse_dated_event · parse_deadline 와 같음): 고른 날이 기본.
+ *   일정: '13:30 회의' · '10/5 13:30 회의' · 'KAMP 회의'(시간 미정) · '10/7 MT'(그날 시간 미정)
+ *   마감: 'KAMP 제출' · '10/20 KAMP 제출' · '마감 10/20 KAMP 제출'
+ */
+export function parseScheduleInput(
+  text: string,
+  kind: "event" | "deadline",
+  selectedDay: string,
+  today: string,
+): Extract<Parsed, { kind: "event" | "deadline" | "error" }> {
+  let t = text.trim();
+  if (kind === "deadline") t = t.replace(DEADLINE_RE, "$1");
+  if (!t) return { kind: "error", message: kind === "event" ? "일정 내용을 적어 주세요." : "마감 이름을 적어 주세요." };
+  const { day, rest, error } = parseDatePrefix(t, today);
+  if (error) return { kind: "error", message: error };
+  const d = day ?? selectedDay;
+  if (kind === "deadline") return rest ? { kind: "deadline", date: d, title: rest } : { kind: "error", message: "마감 이름을 적어 주세요." };
+  const ev = parseEvent(rest) ?? { time: null, title: rest };
+  return { kind: "event", day: d, ...ev };
+}
+
 /** 입력창 왼쪽 표시: 지금 무엇으로 들어갈지 */
 export function previewKind(text: string, viewDay: string, today: string): { label: string; sub?: boolean } {
   if (!text.trim()) return { label: KIND_LABEL.task };

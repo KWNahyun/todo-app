@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import type { V1Data, VaultFs } from "@dailytodo/core";
 import type { Config, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
 
@@ -88,6 +89,11 @@ export function tauriPlatform(): Platform {
     async setPin(mode: PinMode) {
       await win.setAlwaysOnBottom(mode === "desktop");
       await win.setAlwaysOnTop(mode === "top");
+    },
+    async notify(title: string, body: string) {
+      let ok = await isPermissionGranted();
+      if (!ok) ok = (await requestPermission()) === "granted";
+      if (ok) sendNotification({ title, body });
     },
     minimize: () => win.minimize(),
     close: () => win.close(),

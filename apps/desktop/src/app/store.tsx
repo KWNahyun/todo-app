@@ -10,6 +10,7 @@ import { createContext, useContext, useEffect, useRef, useState, useSyncExternal
 import { Replica, VaultError, type LocalState } from "@dailytodo/core";
 import type { Config, Platform, ThemeName } from "../platform/index.ts";
 import { Actions } from "./actions.ts";
+import { dayOf } from "./dates.ts";
 
 export interface SyncStatus {
   state: "ok" | "syncing" | "error";
@@ -144,6 +145,12 @@ export function useNow(on = true, ms = 1000): number {
     return () => clearInterval(h);
   }, [on, ms]);
   return now;
+}
+
+/** 오늘 날짜 (자정이 지나면 바뀜) */
+export function useToday(): string {
+  const now = useNow(true, 30_000);
+  return dayOf(new Date(now));
 }
 
 export function applyTheme(theme: ThemeName | undefined) {

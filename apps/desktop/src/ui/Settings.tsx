@@ -129,6 +129,7 @@ export function Settings() {
   const sync = useSync();
   const [root, setRoot] = useState(config.vaultRoot ?? "");
   const [name, setName] = useState(config.deviceName);
+  const [remind, setRemind] = useState(String(config.remindMin ?? 10));
   const theme = config.theme ?? "minimal";
 
   return (
@@ -143,6 +144,17 @@ export function Settings() {
           ))}
         </div>
         <p>숲 우드 · 파스텔 · 고대비와 글꼴 · 글자 크기는 다음 단계(P3)에서.</p>
+      </section>
+
+      <section>
+        <h2>알림</h2>
+        <label className="label" htmlFor="remind">일정 알림 (분 전, 0 이면 끔)</label>
+        <div className="row">
+          <input id="remind" className="field" style={{ width: 120 }} inputMode="numeric" value={remind}
+            onChange={(e) => setRemind(e.target.value.replace(/\D/g, ""))}
+            onBlur={() => remind !== "" && Number(remind) !== (config.remindMin ?? 10) && void saveConfig({ remindMin: Number(remind) })} />
+          <span className="muted" style={{ fontSize: 13 }}>일정마다 따로 정하려면 일정을 눌러 상세에서.</span>
+        </div>
       </section>
 
       <section>

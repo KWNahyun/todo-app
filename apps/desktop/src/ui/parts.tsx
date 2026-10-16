@@ -44,7 +44,7 @@ export function InputLine({ day, today, autoFocus }: { day: string; today: strin
   );
 }
 
-export function EventList({ day, now, limit }: { day: string; now: number; limit?: number }) {
+export function EventList({ day, now, limit, onSelect }: { day: string; now: number; limit?: number; onSelect?: (id: string) => void }) {
   const { rep } = useApp();
   const events = eventsOf(rep, day);
   const next = nextEvent(events, day, now);
@@ -56,7 +56,8 @@ export function EventList({ day, now, limit }: { day: string; now: number; limit
         const today = dayOf(new Date(now));
         const past = day < today || (day === today && !!e.time && at(day, e.time) < now);
         return (
-          <div key={e.id} className={`ev${e === next ? " next" : ""}${past ? " past" : ""}`}>
+          <div key={e.id} className={`ev${e === next ? " next" : ""}${past ? " past" : ""}${onSelect ? " clickable" : ""}`}
+            onClick={onSelect && (() => onSelect(e.id))}>
             <span className="when num">{e.time ?? "미정"}</span>
             <span className="what" title={e.title}>{e.title}</span>
             {e === next && <span className="left">{until(at(day, e.time!) - now)}</span>}
@@ -67,14 +68,14 @@ export function EventList({ day, now, limit }: { day: string; now: number; limit
   );
 }
 
-export function DeadlineList({ today, limit = 5 }: { today: string; limit?: number }) {
+export function DeadlineList({ today, limit = 5, onSelect }: { today: string; limit?: number; onSelect?: (id: string) => void }) {
   const { rep } = useApp();
   const ds = upcomingDeadlines(rep, today, limit);
   if (!ds.length) return <div className="empty">다가오는 마감 없음</div>;
   return (
     <div className="stack">
       {ds.map((d) => (
-        <div key={d.id} className="dl">
+        <div key={d.id} className={`dl${onSelect ? " clickable" : ""}`} onClick={onSelect && (() => onSelect(d.id))}>
           <span className={`tag ${d.dday <= 3 ? "tag-danger" : d.dday <= 7 ? "tag-sun" : "tag-accent"}`}>{ddayText(d.dday)}</span>
           <span className="what" title={d.title}>{d.title}</span>
         </div>

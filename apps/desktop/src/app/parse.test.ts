@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEvent, parseInput, previewKind } from "./parse.ts";
+import { parseEvent, parseInput, parseScheduleInput, previewKind } from "./parse.ts";
 
 const T = "2026-10-15";
 
@@ -37,6 +37,16 @@ describe("입력 한 줄 (v1 문법 + 새 문법)", () => {
   it("- 로 시작하면 타임라인 기록", () => {
     expect(parseInput("- 점심 맛있었다", T, T)).toEqual({ kind: "moment", text: "점심 맛있었다" });
     expect(parseInput("-빼기 없는 할 일", T, T)).toEqual({ kind: "task", title: "-빼기 없는 할 일" });
+  });
+
+  it("일정표 입력: 고른 날이 기본, 시간이 없으면 미정", () => {
+    const S = "2026-10-20";
+    expect(parseScheduleInput("13:30 회의", "event", S, T)).toEqual({ kind: "event", day: S, time: "13:30", title: "회의" });
+    expect(parseScheduleInput("KAMP 회의", "event", S, T)).toEqual({ kind: "event", day: S, time: null, title: "KAMP 회의" });
+    expect(parseScheduleInput("10/7 MT", "event", S, T)).toEqual({ kind: "event", day: "2026-10-07", time: null, title: "MT" });
+    expect(parseScheduleInput("KAMP 제출", "deadline", S, T)).toEqual({ kind: "deadline", date: S, title: "KAMP 제출" });
+    expect(parseScheduleInput("마감 10/25 보고서", "deadline", S, T)).toEqual({ kind: "deadline", date: "2026-10-25", title: "보고서" });
+    expect(parseScheduleInput("  ", "deadline", S, T)).toMatchObject({ kind: "error" });
   });
 
   it("입력창 왼쪽 표시", () => {
