@@ -12,6 +12,8 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
+
 use tauri::{AppHandle, Manager, WindowEvent};
 
 type Res<T> = Result<T, String>;
@@ -65,6 +67,43 @@ fn vault_append(root: String, path: String, text: String) -> Res<()> {
     }
     let mut f = OpenOptions::new().create(true).append(true).open(p).map_err(err)?;
     f.write_all(text.as_bytes()).map_err(err)
+}
+
+// 사진 같은 이진 파일은 base64 로 주고받음 (2048px WebP 하나가 수백 KB 라 충분)
+#[tauri::command]
+fn vault_read_bytes(root: String, path: String) -> Res<Option<String>> {
+    match fs::read(vault_path(&root, &path)?) {
+        Ok(b) => Ok(Some(B64.encode(b))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(err(e)),
+    }
+}
+
+#[tauri::command]
+fn vault_write_bytes(root: String, path: String, b64: String) -> Res<()> {
+    let bytes = B64.decode(b64).map_err(err)?;
+    let p = vault_path(&root, &path)?;
+    if let Some(dir) = p.parent() {
+        fs::create_dir_all(dir).map_err(err)?;
+    }
+    let tmp = p.with_extension(format!("{}.tmp", std::process::id()));
+    fs::write(&tmp, bytes).map_err(err)?;
+    fs::rename(&tmp, p).map_err(err)
+}
+
+/// v1 기록장에 붙여 둔 사진 파일 읽기 (가져오기용) — 그림 파일만, 50MB 까지, 읽기만
+#[tauri::command]
+fn read_image_file(path: String) -> Res<String> {
+    let p = PathBuf::from(&path);
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if !p.is_absolute() || !["jpg", "jpeg", "png", "webp", "gif", "bmp"].contains(&ext.as_str()) {
+        return Err(format!("그림 파일이 아님: {path}"));
+    }
+    let meta = fs::metadata(&p).map_err(err)?;
+    if meta.len() > 50 * 1024 * 1024 {
+        return Err("50MB 넘는 파일".into());
+    }
+    Ok(B64.encode(fs::read(p).map_err(err)?))
 }
 
 fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) {
@@ -226,7 +265,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
-            vault_read, vault_write, vault_append, vault_list,
+            vault_read, vault_write, vault_append, vault_list, vault_read_bytes, vault_write_bytes, read_image_file,
             local_read, local_write, config_read, default_vault_root, v1_read, show_main
         ])
         .on_window_event(|window, event| {
@@ -281,6 +320,12 @@ mod tests {
         );
         assert_eq!(vault_list(root.clone(), "snapshots/".into()).unwrap(), Vec::<String>::new());
         assert_eq!(vault_list(root.clone(), "".into()).unwrap().len(), 3);
+        // 이진 파일: base64 로 왕복
+        let bytes: Vec<u8> = (0..=255).collect();
+        vault_write_bytes(root.clone(), "blobs/a.webp".into(), B64.encode(&bytes)).unwrap();
+        assert_eq!(B64.decode(vault_read_bytes(root.clone(), "blobs/a.webp".into()).unwrap().unwrap()).unwrap(), bytes);
+        assert_eq!(vault_read_bytes(root.clone(), "blobs/none.webp".into()).unwrap(), None);
+        assert!(read_image_file(format!("{root}/vault.json")).is_err()); // 그림이 아니면 거부
         let _ = fs::remove_dir_all(&root);
     }
 }

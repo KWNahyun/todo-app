@@ -4,6 +4,8 @@
  * 점(.)이 든 칸 이름은 읽을 때 하위 객체로 펼쳐짐: "f.rating" → { f: { rating } }.
  */
 
+import type { Photo } from "./blobs.ts";
+
 export type Day = string; // "YYYY-MM-DD" (그 기기 현지 날짜)
 
 export interface Base {
@@ -99,7 +101,8 @@ export interface Moment extends Base {
   at: number;
   text: string;
   tags?: string[];
-  blobIds?: string[];
+  /** 붙인 사진 (blobs.ts 의 Photo) */
+  photos?: Photo[];
   mood?: number | null;
 }
 
@@ -116,8 +119,8 @@ export interface RecordItem extends Base {
   doneOn?: Day | null;
   stage?: number;
   day?: Day;
-  /** 모음마다 다른 칸 (where · rating · cost · kind · oneline · file …) */
-  f?: Record<string, unknown>;
+  /** 모음마다 다른 칸 (where · rating · cost · kind · oneline · photos · v1 의 file …) */
+  f?: { photos?: Photo[]; [k: string]: unknown };
 }
 
 export interface Mandala extends Base {

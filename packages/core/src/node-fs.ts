@@ -36,6 +36,23 @@ export class NodeFs implements VaultFs {
     await rename(tmp, p);
   }
 
+  async readBytes(path: string): Promise<Uint8Array | null> {
+    try {
+      return new Uint8Array(await readFile(this.abs(path)));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw e;
+    }
+  }
+
+  async writeBytes(path: string, bytes: Uint8Array): Promise<void> {
+    const p = this.abs(path);
+    await mkdir(dirname(p), { recursive: true });
+    const tmp = `${p}.${process.pid}.tmp`;
+    await writeFile(tmp, bytes);
+    await rename(tmp, p);
+  }
+
   async append(path: string, text: string): Promise<void> {
     const p = this.abs(path);
     await mkdir(dirname(p), { recursive: true });

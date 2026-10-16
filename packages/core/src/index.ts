@@ -8,3 +8,4 @@ export * from "./vault.ts";
 export * from "./replica.ts";
 export * from "./sessions.ts";
 export * from "./import-v1.ts";
+export * from "./blobs.ts";

@@ -8,6 +8,7 @@ import { CalendarPopup } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
 import { Left, Right } from "./icons.tsx";
 import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
+import { Records } from "./Records.tsx";
 import { Schedule } from "./Schedule.tsx";
 import { Settings } from "./Settings.tsx";
 import { TaskList } from "./TaskList.tsx";
@@ -15,7 +16,7 @@ import { TaskList } from "./TaskList.tsx";
 const MENU: { id: Screen; label: string; later?: string }[] = [
   { id: "today", label: "오늘" },
   { id: "schedule", label: "일정표" },
-  { id: "records", label: "기록장", later: "P3" },
+  { id: "records", label: "기록장" },
   { id: "stats", label: "통계", later: "P3" },
   { id: "goals", label: "목표", later: "P3" },
 ];
@@ -110,6 +111,7 @@ export function MainWindow() {
       <main className="center">
         {screen === "today" && <Today selected={selected} setSelected={setSelected} />}
         {screen === "schedule" && <Schedule selected={selected} onSelect={(id) => setSelected(id === selected ? null : id)} />}
+        {screen === "records" && <Records />}
         {screen === "settings" && (
           <>
             <div className="center-head"><h1>설정</h1></div>

@@ -3,6 +3,7 @@
  * 위젯 · 메인 창은 같은 주소의 ?view=widget / ?view=main 탭, 창 사이 알림은 BroadcastChannel.
  */
 import { MemoryFs, type VaultFs } from "@dailytodo/core";
+import { fromBase64, toBase64 } from "./base64.ts";
 import type { Config, PeerEvent, Platform, Screen, WindowKind } from "./types.ts";
 
 const KEY = "dt-v2-web";
@@ -46,6 +47,13 @@ class StoredFs implements VaultFs {
   async append(path: string, text: string) {
     await this.write(path, ((await this.read(path)) ?? "") + text);
   }
+  async readBytes(path: string) {
+    const s = await this.read(`${path}.b64`);
+    return s == null ? null : fromBase64(s);
+  }
+  async writeBytes(path: string, bytes: Uint8Array) {
+    await this.write(`${path}.b64`, toBase64(bytes));
+  }
   async list(prefix: string) {
     const out = new Set(await this.mem.list(prefix));
     try {
@@ -57,7 +65,7 @@ class StoredFs implements VaultFs {
     } catch {
       // 메모리 것만
     }
-    return [...out].sort();
+    return [...out].map((p) => p.replace(/\.b64$/, "")).sort();
   }
 }
 
@@ -108,6 +116,9 @@ export function webPlatform(): Platform {
       window.open(`?view=main${screen ? `#${screen}` : ""}`, "dt-main");
     },
     async setPin() {},
+    async readImageFile() {
+      throw new Error("브라우저에서는 PC 파일을 바로 읽을 수 없어요");
+    },
     async notify(title, body) {
       try {
         if (typeof Notification === "undefined") return;

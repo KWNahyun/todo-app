@@ -20,10 +20,21 @@ export interface VaultFs {
   append(path: string, text: string): Promise<void>;
   /** prefix 로 시작하는 모든 파일 경로 */
   list(prefix: string): Promise<string[]>;
+  /** 사진 등 이진 파일 (blobs/) */
+  readBytes(path: string): Promise<Uint8Array | null>;
+  writeBytes(path: string, bytes: Uint8Array): Promise<void>;
 }
 
 export class MemoryFs implements VaultFs {
   files = new Map<string, string>();
+  bins = new Map<string, Uint8Array>();
+
+  async readBytes(path: string): Promise<Uint8Array | null> {
+    return this.bins.get(path) ?? null;
+  }
+  async writeBytes(path: string, bytes: Uint8Array): Promise<void> {
+    this.bins.set(path, bytes.slice());
+  }
 
   async read(path: string): Promise<string | null> {
     return this.files.get(path) ?? null;
@@ -35,7 +46,7 @@ export class MemoryFs implements VaultFs {
     this.files.set(path, (this.files.get(path) ?? "") + text);
   }
   async list(prefix: string): Promise<string[]> {
-    return [...this.files.keys()].filter((p) => p.startsWith(prefix)).sort();
+    return [...this.files.keys(), ...this.bins.keys()].filter((p) => p.startsWith(prefix)).sort();
   }
 }
 

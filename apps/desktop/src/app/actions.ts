@@ -252,6 +252,43 @@ export class Actions {
     });
   }
 
+  // ---------- 기록장 ----------
+
+  /** 그날 기분 (같은 걸 다시 누르면 지움) */
+  setMood(day: string, level: number): void {
+    const cur = this.rep.list("mood", (m) => m.day === day);
+    if (cur.length && cur.every((m) => m.level === level)) {
+      this.track("기분 지움", cur.map((m) => m.id), () => cur.forEach((m) => this.rep.remove(m.id)));
+      return;
+    }
+    const id = cur[0]?.id ?? `mood-${day}`; // 날짜로 ID 를 정해 두 기기가 같은 날 기분을 따로 만들지 않게
+    this.track("기분 고침", [id], () => this.rep.put(id, "mood", { day, level }));
+  }
+
+  /** 일기 글 저장 (자동 저장 — 입력칸이 자기 되돌리기를 가지므로 되돌리기 줄에는 안 올림) */
+  saveJournal(journalId: string | undefined, day: string, text: string): string {
+    const id = journalId ?? `journal-${day}`;
+    if (this.rep.get(id)) this.rep.update<"journal">(id, { text });
+    else this.rep.put(id, "journal", { day, text });
+    return id;
+  }
+
+  addMoment(at: number, text: string, photos: unknown[] = []): string {
+    let id = "";
+    this.track("기록 추가", [], () => [(id = this.rep.create("moment", { at, text, ...(photos.length ? { photos: photos as never } : {}) }))]);
+    return id;
+  }
+
+  /** 데이트 일기 새로 쓰기 */
+  addRecord(collection: string, fields: Record<string, unknown>): string {
+    let id = "";
+    this.track("새 기록", [], () => {
+      id = this.rep.create("record", { collection, ...fields } as never);
+      return [id];
+    });
+    return id;
+  }
+
   // ---------- 세션 ----------
 
   updateSession(id: string, fields: { start?: number; end?: number | null }): void {

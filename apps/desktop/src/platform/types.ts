@@ -39,6 +39,8 @@ export interface Platform {
   emit(event: PeerEvent, payload?: string): void;
   showMain(screen?: Screen): Promise<void>;
   setPin(mode: PinMode): Promise<void>;
+  /** PC 의 그림 파일 읽기 (v1 기록장 사진 가져오기용, 웹에선 안 됨) */
+  readImageFile(path: string): Promise<Uint8Array>;
   /** OS 알림 (권한이 없으면 조용히 넘어감) */
   notify(title: string, body: string): Promise<void>;
   minimize(): Promise<void>;

@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import type { V1Data, VaultFs } from "@dailytodo/core";
 import type { Config, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
+import { fromBase64, toBase64 } from "./base64.ts";
 
 class TauriVaultFs implements VaultFs {
   private root: string;
@@ -21,6 +22,13 @@ class TauriVaultFs implements VaultFs {
   }
   list(prefix: string) {
     return invoke<string[]>("vault_list", { root: this.root, prefix });
+  }
+  async readBytes(path: string) {
+    const b64 = await invoke<string | null>("vault_read_bytes", { root: this.root, path });
+    return b64 == null ? null : fromBase64(b64);
+  }
+  writeBytes(path: string, bytes: Uint8Array) {
+    return invoke<void>("vault_write_bytes", { root: this.root, path, b64: toBase64(bytes) });
   }
 }
 
@@ -94,6 +102,9 @@ export function tauriPlatform(): Platform {
       let ok = await isPermissionGranted();
       if (!ok) ok = (await requestPermission()) === "granted";
       if (ok) sendNotification({ title, body });
+    },
+    async readImageFile(path: string) {
+      return fromBase64(await invoke<string>("read_image_file", { path }));
     },
     minimize: () => win.minimize(),
     close: () => win.close(),
