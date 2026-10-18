@@ -69,7 +69,8 @@ export function Schedule({ selected, onSelect }: { selected: string | null; onSe
   const [over, setOver] = useState<string | null>(null);
 
   const days = rangeDays(mode, anchor);
-  const items = itemsByDay(rep, days);
+  // 고른 날이 보이는 범위 밖이어도 (달을 넘기면) 아래 카드에 그날 것이 나오게
+  const items = itemsByDay(rep, days.includes(day) ? days : [...days, day]);
   const a = toDate(anchor);
   const label = mode === "month" ? `${a.getFullYear()}년 ${a.getMonth() + 1}월` : `${shortDay(days[0]!)} – ${shortDay(days[days.length - 1]!)}`;
 
@@ -102,8 +103,14 @@ export function Schedule({ selected, onSelect }: { selected: string | null; onSe
     onDragLeave: () => setOver((o) => (o === d ? null : o)),
     onDrop: drop(d),
   });
+  const go = (n: number) => {
+    const next = shiftAnchor(mode, anchor, n);
+    setAnchor(next);
+    // 한 달 보기: 고른 날도 그달로 (그달에 오늘이 있으면 오늘, 아니면 1일)
+    if (mode === "month") setDay(sameMonth(next, today) ? today : next);
+  };
   const chips = (d: string, limit?: number) => {
-    const it = items.get(d)!;
+    const it = items.get(d) ?? { events: [], deadlines: [] };
     const all = [
       ...it.deadlines.map((x) => <DeadlineChip key={x.id} d={x} today={today} selected={selected} onSelect={onSelect} />),
       ...it.events.map((x) => <EventChip key={x.id} e={x} selected={selected} onSelect={onSelect} />),
@@ -115,9 +122,9 @@ export function Schedule({ selected, onSelect }: { selected: string | null; onSe
   return (
     <>
       <div className="center-head">
-        <button className="icon-btn" aria-label="이전" onClick={() => setAnchor(shiftAnchor(mode, anchor, -1))}><Left /></button>
+        <button className="icon-btn" aria-label="이전" onClick={() => go(-1)}><Left /></button>
         <h1>{label}</h1>
-        <button className="icon-btn" aria-label="다음" onClick={() => setAnchor(shiftAnchor(mode, anchor, 1))}><Right /></button>
+        <button className="icon-btn" aria-label="다음" onClick={() => go(1)}><Right /></button>
         {!days.includes(today) && <button className="btn" onClick={() => { setAnchor(today); setDay(today); }}>오늘로</button>}
         <div className="seg" role="group" aria-label="보기" style={{ marginLeft: "auto" }}>
           {MODES.map(([m, l]) => <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{l}</button>)}
