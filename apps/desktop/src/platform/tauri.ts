@@ -5,9 +5,11 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { V1Data, VaultFs } from "@dailytodo/core";
-import type { Config, HotkeyAction, PeerEvent, PinMode, Platform, Screen, WindowKind } from "./types.ts";
+import type { Config, HotkeyAction, PeerEvent, PhoneSetup, PinMode, Platform, Screen, WindowKind } from "./types.ts";
 import { fromBase64, toBase64 } from "./base64.ts";
-import { loadTokens, phoneVault, saveTokens } from "./phone.ts";
+
+/** 휴대폰 보관함: 내장 저장소의 DailyTodo 폴더 (Syncthing 으로 PC 의 OneDrive/앱/DailyTodo 와 맞춤) */
+export const PHONE_VAULT = "/storage/emulated/0/DailyTodo";
 
 class TauriVaultFs implements VaultFs {
   private root: string;
@@ -57,16 +59,11 @@ export function tauriPlatform(): Platform {
   return {
     kind: "tauri",
     window: kind,
-    // 휴대폰: 보관함 = OneDrive 앱 전용 폴더(Graph), 로그인 필요
+    // 휴대폰: 보관함 = 휴대폰의 DailyTodo 폴더 (Syncthing 이 PC 보관함과 맞춰 줌)
     ...(phone
       ? {
-          async needsLogin() {
-            return !(await loadTokens());
-          },
-          async signOut() {
-            await saveTokens(null);
-            location.reload();
-          },
+          phoneSetup: () => invoke<PhoneSetup>("vault_status", { root: PHONE_VAULT }),
+          openStorageSettings: () => (window as unknown as { DTAndroid?: { openStorageSettings(): void } }).DTAndroid?.openStorageSettings(),
         }
       : {}),
     async readConfig() {
@@ -84,10 +81,10 @@ export function tauriPlatform(): Platform {
       return invoke("local_write", { name: `local-${kind}.json`, text });
     },
     defaultVaultRoot() {
-      return phone ? Promise.resolve("OneDrive 앱 폴더") : invoke<string>("default_vault_root");
+      return phone ? Promise.resolve(PHONE_VAULT) : invoke<string>("default_vault_root");
     },
     vaultFs(root: string) {
-      return phone ? phoneVault() : new TauriVaultFs(root);
+      return new TauriVaultFs(phone ? PHONE_VAULT : root);
     },
     async readV1() {
       const r = await invoke<[string, Record<string, string>] | null>("v1_read");

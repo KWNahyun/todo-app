@@ -70,10 +70,13 @@ export interface Platform {
   setHotkeys(keys: Partial<Record<HotkeyAction, string>>, onPress: (a: HotkeyAction) => void): Promise<string[]>;
   /** 파일로 내보내기: 저장 창 → 고른 곳에 저장 → 저장한 경로 (취소하면 null) */
   saveExport(name: string, ext: "md" | "csv" | "json" | "png", bytes: Uint8Array): Promise<string | null>;
-  /** 휴대폰: OneDrive 연결 끊기 (다시 로그인) */
-  signOut?: () => Promise<void>;
-  /** 휴대폰: 아직 OneDrive 에 로그인 안 함 → 로그인 화면부터 */
-  needsLogin?: () => Promise<boolean>;
+  /**
+   * 휴대폰: 보관함 폴더(Syncthing 이 PC 와 맞춰 주는 폴더) 상태 —
+   * 파일 접근 권한 없음 / 아직 PC 에서 안 받아 옴 / 준비됨
+   */
+  phoneSetup?: () => Promise<PhoneSetup>;
+  /** 휴대폰: '모든 파일 접근' 설정 화면 열기 */
+  openStorageSettings?: () => void;
   /** 기본 브라우저로 주소 열기 (지도 등, https 만) */
   openUrl(url: string): Promise<void>;
   /** 위젯 창을 앞으로 */
@@ -83,5 +86,7 @@ export interface Platform {
   minimize(): Promise<void>;
   close(): Promise<void>;
 }
+
+export type PhoneSetup = "permission" | "waiting" | "ok";
 
 export type PeerEvent = "vault-changed" | "config-changed" | "open-screen" | "open-review";

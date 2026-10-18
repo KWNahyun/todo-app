@@ -54,6 +54,20 @@ fn write_atomic(p: &Path, text: &str) -> Res<()> {
     fs::rename(&tmp, p).map_err(err)
 }
 
+/// 휴대폰 첫 화면: 보관함 폴더를 쓸 수 있나 · PC 에서 받아 왔나
+/// "permission"(파일 접근 권한 없음) · "waiting"(아직 vault.json 이 안 옴) · "ok"
+#[tauri::command]
+fn vault_status(root: String) -> Res<String> {
+    let dir = PathBuf::from(&root);
+    if let Err(e) = fs::create_dir_all(&dir) {
+        return if e.kind() == std::io::ErrorKind::PermissionDenied { Ok("permission".into()) } else { Err(err(e)) };
+    }
+    if let Err(e) = fs::read_dir(&dir) {
+        return if e.kind() == std::io::ErrorKind::PermissionDenied { Ok("permission".into()) } else { Err(err(e)) };
+    }
+    Ok(if dir.join("vault.json").is_file() { "ok" } else { "waiting" }.into())
+}
+
 #[tauri::command]
 fn vault_write(root: String, path: String, text: String) -> Res<()> {
     write_atomic(&vault_path(&root, &path)?, &text)
@@ -325,6 +339,7 @@ fn idle_seconds() -> u64 {
 #[tauri::command]
 fn show_widget(app: AppHandle) {
     if let Some(w) = app.get_webview_window("widget") {
+        #[cfg(desktop)]
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
@@ -335,6 +350,7 @@ fn show_widget(app: AppHandle) {
 #[tauri::command]
 fn show_main(app: AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
@@ -362,7 +378,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
-            vault_read, vault_write, vault_append, vault_list, vault_list_sizes, vault_read_bytes, vault_write_bytes, read_image_file,
+            vault_read, vault_status, vault_write, vault_append, vault_list, vault_list_sizes, vault_read_bytes, vault_write_bytes, read_image_file,
             local_read, local_write, config_read, default_vault_root, v1_read, show_main, show_widget, idle_seconds, save_export
         ])
         .on_window_event(|window, event| {

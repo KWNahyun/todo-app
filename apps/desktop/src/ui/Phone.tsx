@@ -204,9 +204,9 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="설정" onClose={onClose} full>
       <section className="stack">
-        <span className="label">OneDrive</span>
+        <span className="label">동기화 (Syncthing)</span>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          {platform.kind === "web" ? "브라우저 미리보기 — PC 화면과 같은 저장소를 봐요." : `연결됨 · ${config.vaultRoot ?? ""}`}
+          {platform.kind === "web" ? "브라우저 미리보기 — PC 화면과 같은 저장소를 봐요." : `보관함 폴더 · ${config.vaultRoot ?? ""} — PC 와 휴대폰이 둘 다 켜져 있을 때 주고받아요`}
         </p>
         <div className="row">
           <button className="btn" onClick={() => void engine.syncNow()}>지금 맞추기</button>
@@ -214,7 +214,6 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
             {sync.state === "error" ? `문제: ${sync.error}` : sync.last ? `마지막 ${new Date(sync.last).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}` : "맞추는 중…"}
           </span>
         </div>
-        {platform.signOut && <button className="btn btn-ghost" style={{ justifySelf: "start" }} onClick={() => void platform.signOut!()}>로그아웃</button>}
       </section>
       <section className="stack">
         <span className="label">테마 (모든 기기 공통)</span>

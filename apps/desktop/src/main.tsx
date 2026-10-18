@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@fontsource/gowun-batang/korean-400.css";
@@ -11,7 +11,8 @@ import { getPlatform } from "./platform/index.ts";
 import { ErrorBoundary } from "./ui/ErrorBoundary.tsx";
 import { MainWindow } from "./ui/MainWindow.tsx";
 import { Phone } from "./ui/Phone.tsx";
-import { PhoneLogin } from "./ui/PhoneLogin.tsx";
+import { PhoneSetup } from "./ui/PhoneSetup.tsx";
+import type { PhoneSetup as SetupStatus } from "./platform/index.ts";
 import { Widget } from "./ui/Widget.tsx";
 
 const platform = getPlatform();
@@ -19,14 +20,15 @@ const platform = getPlatform();
 if (platform.window === "widget") document.documentElement.classList.add("widget-window");
 if (platform.window === "phone") document.documentElement.classList.add("phone");
 
-/** 휴대폰은 OneDrive 에 로그인해야 보관함을 열 수 있음 → 그 전엔 로그인 화면 */
+/** 휴대폰은 보관함 폴더가 준비돼야 (권한 · PC 에서 받아 옴) 열 수 있음 → 그 전엔 준비 화면 */
 function Root() {
-  const [state, setState] = useState<"checking" | "login" | "ready">(platform.needsLogin ? "checking" : "ready");
+  const [state, setState] = useState<"checking" | SetupStatus>(platform.phoneSetup ? "checking" : "ok");
   useEffect(() => {
-    if (platform.needsLogin) void platform.needsLogin().then((n) => setState(n ? "login" : "ready"), () => setState("login"));
+    if (platform.phoneSetup) void platform.phoneSetup().then(setState, () => setState("permission"));
   }, []);
+  const ready = useCallback(() => setState("ok"), []);
   if (state === "checking") return <div className="loading">불러오는 중…</div>;
-  if (state === "login") return <PhoneLogin platform={platform} />;
+  if (state !== "ok") return <PhoneSetup platform={platform} status={state} onReady={ready} />;
   return (
     <AppProvider platform={platform}>
       {platform.window === "widget" ? <Widget /> : platform.window === "phone" ? <Phone /> : <MainWindow />}
