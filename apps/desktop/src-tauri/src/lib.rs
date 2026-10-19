@@ -62,10 +62,22 @@ fn vault_status(root: String) -> Res<String> {
     if let Err(e) = fs::create_dir_all(&dir) {
         return if e.kind() == std::io::ErrorKind::PermissionDenied { Ok("permission".into()) } else { Err(err(e)) };
     }
-    if let Err(e) = fs::read_dir(&dir) {
-        return if e.kind() == std::io::ErrorKind::PermissionDenied { Ok("permission".into()) } else { Err(err(e)) };
+    // 안드로이드는 권한이 없어도 목록 · 있는지 확인은 될 수 있음 → 실제로 읽고 써 봄
+    let denied = |e: &std::io::Error| e.kind() == std::io::ErrorKind::PermissionDenied;
+    let probe = dir.join(".dt-probe.tmp");
+    match fs::write(&probe, b"ok") {
+        Ok(()) => {
+            let _ = fs::remove_file(&probe);
+        }
+        Err(e) if denied(&e) => return Ok("permission".into()),
+        Err(e) => return Err(err(e)),
     }
-    Ok(if dir.join("vault.json").is_file() { "ok" } else { "waiting" }.into())
+    match fs::read(dir.join("vault.json")) {
+        Ok(_) => Ok("ok".into()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok("waiting".into()),
+        Err(e) if denied(&e) => Ok("permission".into()),
+        Err(e) => Err(err(e)),
+    }
 }
 
 #[tauri::command]
