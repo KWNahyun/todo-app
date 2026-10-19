@@ -39,3 +39,12 @@ export const Pin = ({ mode }: { mode: "normal" | "top" | "desktop" }) => (
 export const Trash = () => (
   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" {...S} /></svg>
 );
+
+/** 앱 로고 (아이콘과 같은 스톱워치 + 체크, 글자 크기에 맞춤) */
+export const Logo = () => (
+  <svg className="logo" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">
+    <rect x="10.8" y="1.6" width="2.4" height="2.4" rx=".8" fill="currentColor" />
+    <circle cx="12" cy="13.4" r="8.4" {...S} strokeWidth={2} />
+    <path d="M8.6 13.6l2.4 2.4 4.4-4.6" {...S} strokeWidth={2.2} />
+  </svg>
+);

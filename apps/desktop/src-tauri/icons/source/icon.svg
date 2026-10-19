@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Daily Todo 아이콘 (미니멀): 앱 강조색 바탕 + 흰 스톱워치 고리와 체크 하나 -->
+  <rect width="1024" height="1024" rx="228" fill="#2f6a4c"/>
+  <rect x="482" y="214" width="60" height="58" rx="18" fill="#ffffff"/>
+  <circle cx="512" cy="548" r="236" fill="none" stroke="#ffffff" stroke-width="44"/>
+  <path d="M410 552 L487 628 L622 486" fill="none" stroke="#ffffff" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

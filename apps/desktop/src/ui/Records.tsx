@@ -204,8 +204,9 @@ function Diary() {
   const [view, setView] = useState<"essay" | "tl" | "paper">("tl");
   const [cal, setCal] = useState(false);
   return (
-    <div className="records">
-      <DiaryList day={day} setDay={setDay} />
+    <div className="records diary">
+      {/* 휴대폰은 목록이 아래 → 고르면 내용(위)으로 올라감 */}
+      <DiaryList day={day} setDay={(d) => { setDay(d); document.querySelector(".p-main")?.scrollTo({ top: 0, behavior: "smooth" }); }} />
       <div className="rec-main">
         <div className="center-head">
           <button className="icon-btn" aria-label="전날" onClick={() => setDay(addDays(day, -1))}><Left /></button>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- 안드로이드 적응형 아이콘 앞면: 글리프만 (바탕색은 values/ic_launcher_background.xml), 가운데 66% 안전 영역 안 -->
+  <g transform="translate(512 512) scale(0.62) translate(-512 -540)">
+    <rect x="482" y="214" width="60" height="58" rx="18" fill="#ffffff"/>
+    <circle cx="512" cy="548" r="236" fill="none" stroke="#ffffff" stroke-width="44"/>
+    <path d="M410 552 L487 628 L622 486" fill="none" stroke="#ffffff" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

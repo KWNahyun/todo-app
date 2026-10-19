@@ -7,7 +7,7 @@ import { useApp, useData, useNow, useSync, useToday } from "../app/store.tsx";
 import type { Screen } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
-import { Left, Right } from "./icons.tsx";
+import { Left, Right, Logo } from "./icons.tsx";
 import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
 import { Help } from "./Help.tsx";
@@ -132,7 +132,7 @@ export function MainWindow() {
   return (
     <div className="window">
       <nav className="nav" aria-label="메뉴">
-        <div className="brand">❦ Daily Todo</div>
+        <div className="brand"><Logo /> Daily Todo</div>
         {MENU.filter((m) => !m.needs || m.needs.some((f) => featureOn(rep, f))).map((m) => (
           <button key={m.id} className={screen === m.id ? "on" : ""} aria-current={screen === m.id ? "page" : undefined} onClick={() => go(m.id)}>
             {m.label}

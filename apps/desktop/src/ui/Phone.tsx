@@ -1,8 +1,10 @@
 /**
- * 휴대폰 첫 버전 (설계 5장 · 13장): 아래 탭 [오늘 | 일정 | 데이트] + 오른쪽 위 설정.
- * - 오늘: 다가오는 일정 · 3일 안의 마감 + 할 일 체크 (타이머는 PC 에서), ＋ 는 PC 와 같은 입력 한 줄
+ * 휴대폰 (설계 5장 · 13장): 아래 탭 [오늘 | 일정 | 기록 | 데이트 | 더보기] + 오른쪽 위 설정.
+ * - 오늘: 다가오는 일정 · 3일 안의 마감 + 할 일 체크 · 타이머, 기분 · 습관 · 오늘의 기록, 정리하기
  * - 일정: 달력 · 그날 일정과 마감, ＋ 로 추가, 누르면 고치기
+ * - 기록: PC 기록장 그대로 (다이어리 · 모음)
  * - 데이트: 카드 목록, ＋ 로 새 기록 (사진부터)
+ * - 더보기: 통계 · 목표(습관 · 만다라트)
  * PC 와 같은 복제본 · 같은 동작(되돌리기 포함)을 그대로 씀 — 화면만 손에 맞게.
  */
 import { useEffect, useState, type ReactNode } from "react";
@@ -17,10 +19,16 @@ import { MiniCalendar } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
 import { Close, Left, Right } from "./icons.tsx";
 import { InputLine, Snackbar } from "./parts.tsx";
-import { DateCard, DateEditor } from "./Records.tsx";
+import { Goals } from "./Goals.tsx";
+import { DateCard, DateEditor, MoodPicker, Records } from "./Records.tsx";
+import { Stats } from "./Stats.tsx";
 import { TaskList } from "./TaskList.tsx";
+import { HabitChips, ReviewSheet } from "./WidgetGuard.tsx";
+import { TimelinePreview } from "./parts.tsx";
+import { clock } from "../app/dates.ts";
+import { dayTotal, runningSessions } from "../app/selectors.ts";
 
-type Tab = "today" | "schedule" | "date";
+type Tab = "today" | "schedule" | "records" | "date" | "more";
 
 /** 아래에서 올라오는 패널 */
 function Sheet({ title, onClose, children, full }: { title: string; onClose: () => void; children: ReactNode; full?: boolean }) {
@@ -46,6 +54,8 @@ function TabIcon({ tab }: { tab: Tab }) {
   const S = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
   if (tab === "today") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...S} /><path d="M8.5 12.5l2.5 2.5 4.5-5" {...S} /></svg>;
   if (tab === "schedule") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5" {...S} /><path d="M4 10h16M9 3v4M15 3v4" {...S} /></svg>;
+  if (tab === "records") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h10l2 2v14H6z" {...S} /><path d="M9 9h6M9 13h6M9 17h3" {...S} /></svg>;
+  if (tab === "more") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6" {...S} /></svg>;
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 1.8C19 14.6 12 19 12 19z" {...S} /></svg>;
 }
 
@@ -57,8 +67,12 @@ function TodayTab({ onOpen }: { onOpen: (id: string) => void }) {
   const today = useToday();
   const [day, setDay] = useState(today);
   const [add, setAdd] = useState(false);
-  const now = useNow(true, 30_000);
-  const tree = dayTree(rep, day);
+  const [review, setReview] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const tree0 = dayTree(rep, day);
+  // 타이머가 돌면 1초마다, 아니면 30초마다
+  const now = useNow(true, runningSessions(rep).length > 0 ? 1000 : 30_000);
+  const tree = tree0;
   const { done, total } = progress(tree);
   const events = featureOn(rep, "events") ? eventsOf(rep, day) : [];
   const next = nextEvent(events, day, now) ?? (day !== today ? events[0] : undefined);
@@ -86,10 +100,28 @@ function TodayTab({ onOpen }: { onOpen: (id: string) => void }) {
             ))}
           </div>
         )}
-        {total > 0 && <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: `${(done / total) * 100}%` }} /></div>}
+        {total > 0 && (
+          <>
+            <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: `${(done / total) * 100}%` }} /></div>
+            <div className="muted num" style={{ fontSize: 12.5 }}>완료 {done}/{total} · 총 {clock(dayTotal(rep, tree, now))}</div>
+          </>
+        )}
         <TaskList tree={tree} now={now} phone onSelect={onOpen} onDetail={onOpen} />
         {day !== today && <button className="btn" onClick={() => setDay(today)}>오늘로</button>}
+        <section className="card p-log">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <span className="label">{day === today ? "오늘의 기록" : "이날의 기록"}</span>
+            {featureOn(rep, "mood") && <MoodPicker day={day} />}
+          </div>
+          {featureOn(rep, "habits") && <HabitChips day={day} />}
+          <TimelinePreview day={day} now={now} />
+        </section>
+        {featureOn(rep, "review") && <button className="btn" onClick={() => setReview(true)}>{day === today ? "오늘 정리하기" : "이날 정리하기"}</button>}
       </div>
+      {review && (
+        <ReviewSheet day={day} onClose={() => setReview(false)} onDone={(msg) => { setReview(false); setToast(msg); setTimeout(() => setToast(null), 4000); }} />
+      )}
+      {toast && <div className="snack upper" role="status"><span>{toast}</span></div>}
       <button className="fab" aria-label="추가" onClick={() => setAdd(true)}>＋</button>
       {add && (
         <Sheet title={`${shortDay(day)}에 추가`} onClose={() => setAdd(false)}>
@@ -194,6 +226,30 @@ function DateTab() {
   );
 }
 
+// ---------- 기록 · 더보기 (PC 화면을 그대로, 좁은 폭은 CSS 로) ----------
+
+function RecordsTab() {
+  return <div className="p-body p-wide"><Records initial="diary" /></div>;
+}
+
+function MoreTab() {
+  const { rep } = useApp();
+  useData();
+  const stats = featureOn(rep, "stats");
+  const [part, setPart] = useState<"stats" | "goals">(stats ? "stats" : "goals");
+  return (
+    <>
+      <header className="p-head">
+        <div className="seg" role="group" aria-label="보기">
+          {stats && <button aria-pressed={part === "stats"} onClick={() => setPart("stats")}>통계</button>}
+          <button aria-pressed={part === "goals"} onClick={() => setPart("goals")}>목표 · 습관</button>
+        </div>
+      </header>
+      <div className="p-body p-wide">{part === "stats" && stats ? <Stats /> : <Goals />}</div>
+    </>
+  );
+}
+
 // ---------- 설정 ----------
 
 function PhoneSettings({ onClose }: { onClose: () => void }) {
@@ -225,7 +281,7 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
           ))}
         </div>
       </section>
-      <p className="faint" style={{ fontSize: 12 }}>타이머 · 기분 · 습관 · 기록장 · 통계는 PC 에서 — 기록은 모두 동기화돼요.</p>
+      <p className="faint" style={{ fontSize: 12 }}>기능 켜고 끄기 · 글꼴 · 내보내기는 PC 설정에서 — 모든 기기에 같이 적용돼요.</p>
     </Sheet>
   );
 }
@@ -251,7 +307,7 @@ export function Phone() {
     }
   };
   const date = featureOn(rep, "date");
-  const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ...(date ? [["date", "데이트"] as [Tab, string]] : [])];
+  const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ...(date ? [["date", "데이트"] as [Tab, string]] : []), ["more", "더보기"]];
   return (
     <div className="phone-app">
       <button className="icon-btn p-gear" aria-label="설정" onClick={() => setSettings(true)}>
@@ -260,7 +316,9 @@ export function Phone() {
       <main className="p-main">
         {tab === "today" && <TodayTab onOpen={setDetail} />}
         {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
+        {tab === "records" && <RecordsTab />}
         {tab === "date" && date && <DateTab />}
+        {tab === "more" && <MoreTab />}
       </main>
       <nav className="p-tabs" aria-label="탭">
         {tabs.map(([t, l]) => (

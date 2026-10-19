@@ -5,6 +5,7 @@
  * 보관함(vault.json)이 오기 전엔 열지 않음 — 휴대폰이 따로 새 보관함을 만들면 PC 와 갈라짐.
  */
 import { useEffect, useState } from "react";
+import { Logo } from "./icons.tsx";
 import type { Platform, PhoneSetup as Status } from "../platform/index.ts";
 
 export function PhoneSetup({ platform, status, onReady }: { platform: Platform; status: Status; onReady: () => void }) {
@@ -36,7 +37,7 @@ export function PhoneSetup({ platform, status, onReady }: { platform: Platform; 
 
   return (
     <div className="p-login">
-      <h1>❦ Daily Todo</h1>
+      <h1><Logo /> Daily Todo</h1>
       {now === "permission" ? (
         <>
           <p>PC 와 같은 기록을 보려면 휴대폰의 <b>DailyTodo</b> 폴더를 써요. 이 폴더를 읽고 쓰도록 <b>'모든 파일 접근'</b>을 허용해 주세요.</p>

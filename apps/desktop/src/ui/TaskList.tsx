@@ -118,7 +118,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
     const top = !t.parentId || !rep.get(t.parentId);
     const items: MenuItem[] = [
       { label: t.done ? "완료 취소" : "완료", onClick: () => actions.toggleDone(t.id) },
-      ...(leaf && !t.done && !phone ? [{ label: isRunning(rep, t.id) ? "타이머 정지" : "타이머 시작", onClick: () => actions.toggleTimer(t.id) }] : []),
+      ...(leaf && !t.done ? [{ label: isRunning(rep, t.id) ? "타이머 정지" : "타이머 시작", onClick: () => actions.toggleTimer(t.id) }] : []),
       { label: "상세 편집 (메모 · 예상 시간)", onClick: () => (onDetail ?? onSelect)?.(t.id) },
       { label: "", separator: true },
     ];
@@ -219,9 +219,9 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
         {kids.length > 0 && (
           <button className="icon-btn add-child" title="하위 할 일 추가" aria-label={`${t.title} 아래에 하위 할 일 추가`} onClick={() => setAdding(t.id)}>+</button>
         )}
-        {!phone && !kids.length && !t.done && (
+        {!kids.length && !t.done && (
           <button className={`btn${running ? " btn-active" : ""}`} onClick={() => actions.toggleTimer(t.id)}>
-            {running ? <><Pause /> {compact ? "" : "정지"}</> : <><Play /> {compact ? "" : "시작"}</>}
+            {running ? <><Pause /> {compact || phone ? "" : "정지"}</> : <><Play /> {compact || phone ? "" : "시작"}</>}
           </button>
         )}
       </div>

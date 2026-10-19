@@ -21,8 +21,12 @@ Copy-Item $so "$jni\libdailytodo_lib.so" -Force
 
 # 2) APK
 Push-Location "$here\src-tauri\gen\android"
-.\gradlew.bat assembleArm64Release -x rustBuildArm64Release --console=plain -q
-if ($LASTEXITCODE) { throw "gradle 실패" }
+# gradle 경고는 stderr 로 나와서 Stop 이면 실패로 보임 → 종료 코드로만 판단
+$ErrorActionPreference = "Continue"
+.\gradlew.bat assembleArm64Release -x rustBuildArm64Release --console=plain -q 2>&1 | Where-Object { $_ -notmatch "warning" } | Out-Host
+$code = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($code) { throw "gradle 실패" }
 Pop-Location
 
 # 3) 서명 (이 PC 의 디버그 키 — 개인 설치용)

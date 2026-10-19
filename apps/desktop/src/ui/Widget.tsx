@@ -7,7 +7,7 @@ import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upco
 import { useApp, useData, useNow, useToday } from "../app/store.tsx";
 import { DEFAULT_HOTKEYS, type HotkeyAction, type PinMode } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
-import { Close, Expand, Left, Minus, Pin, Right } from "./icons.tsx";
+import { Close, Expand, Left, Minus, Pin, Right, Logo } from "./icons.tsx";
 import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
 import { MoodPicker } from "./Records.tsx";
 import { TaskList } from "./TaskList.tsx";
@@ -123,7 +123,7 @@ export function Widget() {
   return (
     <div className="widget" style={{ "--w-alpha": `${config.widgetAlpha ?? 100}%` } as React.CSSProperties}>
       <header className="w-top" data-tauri-drag-region>
-        <b data-tauri-drag-region>❦ Daily Todo</b>
+        <b data-tauri-drag-region><Logo /> Daily Todo</b>
         <div className="btns">
           <button className="icon-btn" title={`${PIN_LABEL[pin]} (누르면 ${PIN_LABEL[PIN_NEXT[pin]]})`} aria-label="고정 방식 바꾸기" onClick={() => void saveConfig({ pin: PIN_NEXT[pin] })}>
             <Pin mode={pin} />
