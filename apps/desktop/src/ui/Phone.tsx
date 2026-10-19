@@ -277,6 +277,8 @@ export function Phone() {
   useData();
   const go = (t: Tab) => {
     setTab(t);
+    // 탭마다 맨 위부터 (앞 탭에서 내린 만큼 내려가 있지 않게)
+    document.querySelector(".p-main")?.scrollTo({ top: 0 });
     try {
       localStorage.setItem("dt-phone-tab", t);
     } catch {
