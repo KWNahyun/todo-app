@@ -1,19 +1,17 @@
 /**
- * 휴대폰 (설계 5장 · 13장): 아래 탭 [오늘 | 일정 | 기록 | 데이트 | 더보기] + 오른쪽 위 설정.
+ * 휴대폰 (설계 5장 · 13장): 아래 탭 [오늘 | 일정 | 기록 | 더보기] + 오른쪽 위 설정.
  * - 오늘: 다가오는 일정 · 3일 안의 마감 + 할 일 체크 · 타이머, 기분 · 습관 · 메모(그날 일기), 정리하기
  * - 일정: 달력 · 그날 일정과 마감, ＋ 로 추가, 누르면 고치기
- * - 기록: 다이어리(글 · 타임라인) · 모음 — 휴대폰 전용 화면 (PhoneRecords)
- * - 데이트: 카드 목록, ＋ 로 새 기록 (사진부터)
+ * - 기록: 다이어리(글 · 타임라인) · 데이트 일기 · 모음 — PC 기록장처럼 (PhoneRecords)
  * - 더보기: 통계 · 목표(습관 · 만다라트)
  * PC 와 같은 복제본 · 같은 동작(되돌리기 포함)을 그대로 씀 — 화면만 손에 맞게.
  */
 import { useState } from "react";
-import { addDays, ddayText, longDay, shortDay, toDate } from "../app/dates.ts";
+import { addDays, clock, ddayText, longDay, shortDay, toDate } from "../app/dates.ts";
 import { THEMES, featureOn, sharedSettings } from "../app/appearance.ts";
 import { parseScheduleInput } from "../app/parse.ts";
-import { DATE, dateRecords } from "../app/records.ts";
 import { itemsByDay } from "../app/schedule.ts";
-import { dayTree, eventsOf, nextEvent, progress, upcomingDeadlines } from "../app/selectors.ts";
+import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upcomingDeadlines } from "../app/selectors.ts";
 import { useApp, useData, useNow, useSync, useToday } from "../app/store.tsx";
 import { MiniCalendar } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
@@ -22,22 +20,19 @@ import { PhoneRecords } from "./PhoneRecords.tsx";
 import { Sheet } from "./Sheet.tsx";
 import { InputLine, Snackbar } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
-import { DateCard, DateEditor, DayMemo, MoodPicker } from "./Records.tsx";
+import { DayMemo, MoodPicker } from "./Records.tsx";
 import { Stats } from "./Stats.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { HabitChips, ReviewSheet } from "./WidgetGuard.tsx";
-import { clock } from "../app/dates.ts";
-import { dayTotal, runningSessions } from "../app/selectors.ts";
 
-type Tab = "today" | "schedule" | "records" | "date" | "more";
+type Tab = "today" | "schedule" | "records" | "more";
 
 function TabIcon({ tab }: { tab: Tab }) {
   const S = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
   if (tab === "today") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...S} /><path d="M8.5 12.5l2.5 2.5 4.5-5" {...S} /></svg>;
   if (tab === "schedule") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5" {...S} /><path d="M4 10h16M9 3v4M15 3v4" {...S} /></svg>;
   if (tab === "records") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h10l2 2v14H6z" {...S} /><path d="M9 9h6M9 13h6M9 17h3" {...S} /></svg>;
-  if (tab === "more") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6" {...S} /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 1.8C19 14.6 12 19 12 19z" {...S} /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6" {...S} /></svg>;
 }
 
 // ---------- 오늘 ----------
@@ -177,37 +172,7 @@ function ScheduleTab({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-// ---------- 데이트 ----------
-
-function DateTab() {
-  const { rep, actions } = useApp();
-  useData();
-  const today = useToday();
-  const [open, setOpen] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const list = dateRecords(rep, q);
-  const r = open ? rep.get<"record">(open) : undefined;
-  return (
-    <>
-      <header className="p-head"><h1>데이트 일기</h1></header>
-      <div className="p-body">
-        <input className="field" placeholder="검색 (제목 · 장소 · 태그)" aria-label="데이트 일기 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="p-cards">
-          {list.map((x) => <DateCard key={x.id} r={x} on={false} onClick={() => setOpen(x.id)} />)}
-        </div>
-        {!list.length && <div className="empty">함께한 날을 남겨 보세요. ＋ 를 누르면 사진부터 고를 수 있어요.</div>}
-      </div>
-      <button className="fab" aria-label="새 데이트" onClick={() => setOpen(actions.addRecord(DATE, { title: "새 데이트", day: today }))}>＋</button>
-      {r && (
-        <Sheet title={r.title} onClose={() => setOpen(null)} full>
-          <DateEditor key={r.id} r={r} onClose={() => setOpen(null)} />
-        </Sheet>
-      )}
-    </>
-  );
-}
-
-// ---------- 기록 · 더보기 (PC 화면을 그대로, 좁은 폭은 CSS 로) ----------
+// ---------- 더보기: 통계 · 목표 (PC 화면을 그대로, 좁은 폭은 CSS 로) ----------
 
 function MoreTab() {
   const { rep } = useApp();
@@ -266,7 +231,8 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
 export function Phone() {
   const [tab, setTab] = useState<Tab>(() => {
     try {
-      return (localStorage.getItem("dt-phone-tab") as Tab) || "today";
+      const t = localStorage.getItem("dt-phone-tab");
+      return t === "date" ? "records" : (t as Tab) || "today";
     } catch {
       return "today";
     }
@@ -285,8 +251,7 @@ export function Phone() {
       // 기억 못 해도 그만
     }
   };
-  const date = featureOn(rep, "date");
-  const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ...(date ? [["date", "데이트"] as [Tab, string]] : []), ["more", "더보기"]];
+  const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ["more", "더보기"]];
   return (
     <div className="phone-app">
       <button className="icon-btn p-gear" aria-label="설정" onClick={() => setSettings(true)}>
@@ -296,7 +261,6 @@ export function Phone() {
         {tab === "today" && <TodayTab onOpen={setDetail} />}
         {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
         {tab === "records" && <PhoneRecords />}
-        {tab === "date" && date && <DateTab />}
         {tab === "more" && <MoreTab />}
       </main>
       <nav className="p-tabs" aria-label="탭">

@@ -3,7 +3,7 @@
  * - 다이어리: 왼쪽 달별 목록 · 검색, 오른쪽 그날 — 기분 · 요약 · [글 | 타임라인]
  * - 데이트 일기: 왼쪽 카드 목록, 오른쪽 상세 (장소 · 별점 · 쓴 돈 · 태그 · 이야기 · 사진 여러 장)
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Photo, RecordItem } from "@dailytodo/core";
 import { addDays, dayOf, hhmm, longDay, shortDay, toDate } from "../app/dates.ts";
 import {
@@ -92,7 +92,7 @@ export function DayMemo({ day }: { day: string }) {
   useEffect(() => () => flush(), [day]); // 날짜를 바꾸면 바로 저장
   const rows = Math.min(10, Math.max(3, text.split("\n").length + 1));
   return (
-    <textarea className="memo-box" rows={rows} value={text} placeholder="메모 · 오늘 있었던 일, 생각난 것…" aria-label="메모"
+    <textarea className="memo-box" rows={rows} style={{ "--rows": rows } as CSSProperties} value={text} placeholder="메모 · 오늘 있었던 일, 생각난 것…" aria-label="메모"
       onChange={(e) => change(e.target.value)} onBlur={flush} />
   );
 }
@@ -289,6 +289,7 @@ export function Field({ label, value, onSave, placeholder, inputMode }: { label:
     <>
       <label className="label" htmlFor={id}>{label}</label>
       <input id={id} className="field" value={v} placeholder={placeholder} inputMode={inputMode}
+        onFocus={(e) => v === "-" && e.target.select()} // 비어 있음 표시('-')는 바로 덮어쓰게
         onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v)}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
     </>
@@ -312,7 +313,7 @@ export function DateEditor({ r, onClose }: { r: RecordItem; onClose: () => void 
           <input id="d-day" type="date" className="field" value={r.day ?? ""} onChange={(e) => e.target.value && actions.update(r.id, { day: e.target.value }, "날짜 고침")} />
         </div>
         <div className="stack"><Field label="장소 · 코스" value={String(r.f?.where ?? "")} onSave={(v) => actions.update(r.id, { f: { where: v } }, "장소 고침")} placeholder="성수 카페거리 → 서울숲" /></div>
-        <div className="stack"><Field label="쓴 돈" value={String(r.f?.cost ?? "")} onSave={(v) => actions.update(r.id, { f: { cost: v } }, "쓴 돈 고침")} placeholder="52000" /></div>
+        <div className="stack"><Field label="쓴 돈" value={String(r.f?.cost || "-")} onSave={(v) => actions.update(r.id, { f: { cost: v.trim() || "-" } }, "쓴 돈 고침")} placeholder="52000" /></div>
         <div className="stack">
           <span className="label">오늘의 별점</span>
           <Stars value={Number(r.f?.rating ?? 0)} onChange={(n) => actions.update(r.id, { f: { rating: n } }, "별점 고침")} />

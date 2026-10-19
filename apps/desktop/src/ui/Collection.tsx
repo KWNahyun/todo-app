@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import type { CollectionDef, RecordItem } from "@dailytodo/core";
-import { fieldKey, isDone, items, splitTags, subtitle, tagsOf, type Field as F, type FieldKind, type ListFilter, type Schema } from "../app/collections.ts";
+import { fieldKey, isDone, items, splitTags, subtitle, tagsOf, type Field as F, type FieldKind, type Step, type ListFilter, type Schema } from "../app/collections.ts";
 import { featureOn } from "../app/appearance.ts";
 import { shortDay } from "../app/dates.ts";
 import { parseTags } from "../app/records.ts";
@@ -68,10 +68,47 @@ function FieldInput({ f, r }: { f: F; r: RecordItem }) {
     case "number":
       return <div className="stack"><Field label={f.label} value={v == null ? "" : String(v)} inputMode="numeric" onSave={(x) => save(x.trim() === "" ? null : Number(x.replace(/[^\d.-]/g, "")))} /></div>;
     case "photos":
-      return null; // 아래 사진 칸에서
+    case "steps":
+      return null; // 아래 따로 (넓게)
     default:
       return <div className="stack"><Field label={f.label} value={String(v ?? "")} onSave={save} /></div>;
   }
+}
+
+/** 과정 기록: 한 항목에 날짜별로 한 일을 이어서 (취미 기록 등) */
+function StepsField({ f, r }: { f: F; r: RecordItem }) {
+  const { actions } = useApp();
+  const today = useToday();
+  const steps = ((r.f?.[f.key] as Step[] | undefined) ?? []).slice().sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  const [day, setDay] = useState(today);
+  const [text, setText] = useState("");
+  const save = (next: Step[], label: string) => actions.update(r.id, { f: { [f.key]: next } }, label);
+  const add = () => {
+    if (!text.trim()) return;
+    save([...steps, { id: crypto.randomUUID(), day, text: text.trim() }], `${f.label} 추가`);
+    setText("");
+  };
+  return (
+    <div className="stack steps">
+      <span className="label">{f.label} {steps.length > 0 && <span className="faint">· {steps.length}번</span>}</span>
+      {steps.map((x, i) => (
+        <div key={x.id} className="step">
+          <span className="step-n num">{i + 1}</span>
+          <span className="step-day num">{shortDay(x.day)}</span>
+          <input className="step-text" defaultValue={x.text} aria-label={`${i + 1}번째 ${f.label}`}
+            onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== x.text && save(steps.map((y) => (y.id === x.id ? { ...y, text: e.target.value.trim() } : y)), `${f.label} 고침`)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+          <button className="icon-btn" aria-label={`${i + 1}번째 ${f.label} 지우기`} onClick={() => save(steps.filter((y) => y.id !== x.id), `${f.label} 지움`)}><Trash /></button>
+        </div>
+      ))}
+      <div className="compose">
+        <input type="date" className="time-in" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} aria-label="날짜" />
+        <input value={text} placeholder={steps.length ? "다음 과정 · 오늘 한 것" : "첫 과정 · 오늘 한 것"} aria-label={`${f.label} 추가`}
+          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && add()} />
+        <button className="btn btn-accent" onClick={add}>추가</button>
+      </div>
+    </div>
+  );
 }
 
 function Editor({ s, r, onClose }: { s: Schema; r: RecordItem; onClose: () => void }) {
@@ -115,10 +152,11 @@ function Editor({ s, r, onClose }: { s: Schema; r: RecordItem; onClose: () => vo
         </div>
       )}
 
-      {s.fields.some((f) => f.kind !== "photos") && (
+      {s.fields.some((f) => f.kind !== "photos" && f.kind !== "steps") && (
         <div className="form-grid">{s.fields.map((f) => <FieldInput key={f.key} f={f} r={r} />)}</div>
       )}
       <Field label="태그" value={(r.tags ?? []).map((t) => `#${t}`).join(" ")} onSave={(v) => actions.update(r.id, { tags: parseTags(v) }, "태그 고침")} placeholder="#여행 #겨울" />
+      {s.fields.filter((f) => f.kind === "steps").map((f) => <StepsField key={f.key} f={f} r={r} />)}
       {photos && <PhotoField r={r} label={photos.label} />}
 
       <span className="label">{s.noteLabel}</span>
@@ -222,7 +260,7 @@ export function CollectionView({ s, phone }: { s: Schema; phone?: boolean }) {
 
 // ---------- 사용자 정의 모음 만들기 · 고치기 ----------
 
-const KINDS: [FieldKind, string][] = [["text", "짧은 글"], ["choice", "선택지"], ["rating", "별점"], ["number", "숫자"], ["date", "날짜"], ["photos", "사진"]];
+const KINDS: [FieldKind, string][] = [["text", "짧은 글"], ["choice", "선택지"], ["rating", "별점"], ["number", "숫자"], ["date", "날짜"], ["steps", "과정 기록"], ["photos", "사진"]];
 
 export function CollectionDesigner({ def, onClose, onSaved }: { def?: CollectionDef; onClose: () => void; onSaved: (id: string) => void }) {
   const { actions } = useApp();

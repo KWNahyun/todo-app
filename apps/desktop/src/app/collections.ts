@@ -6,7 +6,13 @@
 import type { CollectionDef, RecordItem, Replica } from "@dailytodo/core";
 import type { FeatureId } from "./appearance.ts";
 
-export type FieldKind = "text" | "choice" | "rating" | "number" | "date" | "photos";
+export type FieldKind = "text" | "choice" | "rating" | "number" | "date" | "photos" | "steps";
+/** 과정 기록 한 줄 (steps 칸) — 날짜와 한 일 */
+export interface Step {
+  id: string;
+  day: string;
+  text: string;
+}
 export interface Field {
   key: string;
   label: string;
@@ -55,7 +61,7 @@ export const BUILTIN: Schema[] = [
     empty: "보고 싶은 것, 본 것을 남겨 보세요. 한줄평과 별점만 적어도 좋아요.", taskGroup: "콘텐츠", feature: "reviews",
   },
   {
-    key: "hobby", label: "취미 기록", mode: "log", fields: [{ key: "photos", label: "사진", kind: "photos" }],
+    key: "hobby", label: "취미 기록", mode: "log", fields: [{ key: "steps", label: "과정", kind: "steps" }, { key: "photos", label: "사진", kind: "photos" }],
     addHint: "오늘의 취미 기록 제목 (#그림 #기타 처럼 #로 분류)", noteLabel: "무엇을 했는지 · 느낀 점",
     empty: "취미 활동을 날짜별로 남겨 보세요. 그림, 악기, 운동, 요리 무엇이든.", feature: "hobby",
   },
@@ -64,7 +70,7 @@ export const BUILTIN: Schema[] = [
 export function customSchema(c: CollectionDef): Schema {
   return {
     key: c.id, label: c.label, mode: c.mode, stages: c.mode === "stages" ? (c.stages?.length ? c.stages : ["시작 전", "하는 중", "끝"]) : undefined,
-    fields: c.fields ?? [], doneWord: "완료", tabs: ["남은 것", "끝낸 것"], subtitle: (c.fields ?? []).filter((f) => f.kind !== "photos").slice(0, 2).map((f) => f.key),
+    fields: c.fields ?? [], doneWord: "완료", tabs: ["남은 것", "끝낸 것"], subtitle: (c.fields ?? []).filter((f) => f.kind !== "photos" && f.kind !== "steps").slice(0, 2).map((f) => f.key),
     filterField: (c.fields ?? []).find((f) => f.kind === "choice")?.key, addHint: "제목 (#태그 로 분류)", noteLabel: "메모",
     empty: "첫 항목을 적어 보세요.", custom: true,
   };

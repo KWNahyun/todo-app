@@ -1,6 +1,6 @@
 {
   "name": "@dailytodo/desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Daily Todo v2 데스크톱 앱 (Tauri 2 + React)",
   "type": "module",

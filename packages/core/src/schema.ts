@@ -156,7 +156,7 @@ export interface CollectionDef extends Base {
   /** done: 완료 체크 · stages: 단계 · log: 날짜별 기록 */
   mode: "done" | "stages" | "log";
   stages?: string[];
-  fields?: { key: string; label: string; kind: "text" | "choice" | "rating" | "number" | "date" | "photos"; options?: string[] }[];
+  fields?: { key: string; label: string; kind: "text" | "choice" | "rating" | "number" | "date" | "photos" | "steps"; options?: string[] }[];
   order?: string;
 }
 

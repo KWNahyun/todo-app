@@ -45,7 +45,8 @@ function rowValues(s: Schema, r: ReturnType<typeof items>[number]): Record<strin
   };
   for (const f of s.fields) {
     const v = r.f?.[f.key];
-    out[f.label] = f.kind === "photos" ? (Array.isArray(v) && v.length ? `사진 ${v.length}장` : "") : f.kind === "rating" && v ? "★".repeat(Number(v)) : v ?? "";
+    out[f.label] = f.kind === "photos" ? (Array.isArray(v) && v.length ? `사진 ${v.length}장` : "")
+      : f.kind === "steps" ? (Array.isArray(v) ? (v as { day: string; text: string }[]).map((x) => `${x.day} ${x.text}`).join(" / ") : "") : f.kind === "rating" && v ? "★".repeat(Number(v)) : v ?? "";
   }
   out["태그"] = (r.tags ?? []).map((t) => `#${t}`).join(" ");
   out[s.noteLabel] = r.note ?? "";
