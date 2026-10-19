@@ -1,13 +1,13 @@
 /**
  * 휴대폰 (설계 5장 · 13장): 아래 탭 [오늘 | 일정 | 기록 | 데이트 | 더보기] + 오른쪽 위 설정.
- * - 오늘: 다가오는 일정 · 3일 안의 마감 + 할 일 체크 · 타이머, 기분 · 습관 · 오늘의 기록, 정리하기
+ * - 오늘: 다가오는 일정 · 3일 안의 마감 + 할 일 체크 · 타이머, 기분 · 습관 · 메모(그날 일기), 정리하기
  * - 일정: 달력 · 그날 일정과 마감, ＋ 로 추가, 누르면 고치기
- * - 기록: PC 기록장 그대로 (다이어리 · 모음)
+ * - 기록: 다이어리(글 · 타임라인) · 모음 — 휴대폰 전용 화면 (PhoneRecords)
  * - 데이트: 카드 목록, ＋ 로 새 기록 (사진부터)
  * - 더보기: 통계 · 목표(습관 · 만다라트)
  * PC 와 같은 복제본 · 같은 동작(되돌리기 포함)을 그대로 씀 — 화면만 손에 맞게.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { addDays, ddayText, longDay, shortDay, toDate } from "../app/dates.ts";
 import { THEMES, featureOn, sharedSettings } from "../app/appearance.ts";
 import { parseScheduleInput } from "../app/parse.ts";
@@ -17,38 +17,19 @@ import { dayTree, eventsOf, nextEvent, progress, upcomingDeadlines } from "../ap
 import { useApp, useData, useNow, useSync, useToday } from "../app/store.tsx";
 import { MiniCalendar } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
-import { Close, Left, Right } from "./icons.tsx";
+import { Left, Right } from "./icons.tsx";
+import { PhoneRecords } from "./PhoneRecords.tsx";
+import { Sheet } from "./Sheet.tsx";
 import { InputLine, Snackbar } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
-import { DateCard, DateEditor, MoodPicker, Records } from "./Records.tsx";
+import { DateCard, DateEditor, DayMemo, MoodPicker } from "./Records.tsx";
 import { Stats } from "./Stats.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { HabitChips, ReviewSheet } from "./WidgetGuard.tsx";
-import { TimelinePreview } from "./parts.tsx";
 import { clock } from "../app/dates.ts";
 import { dayTotal, runningSessions } from "../app/selectors.ts";
 
 type Tab = "today" | "schedule" | "records" | "date" | "more";
-
-/** 아래에서 올라오는 패널 */
-function Sheet({ title, onClose, children, full }: { title: string; onClose: () => void; children: ReactNode; full?: boolean }) {
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
-  return (
-    <div className="p-sheet-wrap" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`p-sheet${full ? " full" : ""}`} role="dialog" aria-label={title}>
-        <div className="p-sheet-head">
-          <b>{title}</b>
-          <button className="icon-btn" aria-label="닫기" onClick={onClose}><Close /></button>
-        </div>
-        <div className="p-sheet-body">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function TabIcon({ tab }: { tab: Tab }) {
   const S = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -114,7 +95,7 @@ function TodayTab({ onOpen }: { onOpen: (id: string) => void }) {
             {featureOn(rep, "mood") && <MoodPicker day={day} />}
           </div>
           {featureOn(rep, "habits") && <HabitChips day={day} />}
-          <TimelinePreview day={day} now={now} />
+          <DayMemo day={day} />
         </section>
         {featureOn(rep, "review") && <button className="btn" onClick={() => setReview(true)}>{day === today ? "오늘 정리하기" : "이날 정리하기"}</button>}
       </div>
@@ -228,10 +209,6 @@ function DateTab() {
 
 // ---------- 기록 · 더보기 (PC 화면을 그대로, 좁은 폭은 CSS 로) ----------
 
-function RecordsTab() {
-  return <div className="p-body p-wide"><Records initial="diary" /></div>;
-}
-
 function MoreTab() {
   const { rep } = useApp();
   useData();
@@ -316,7 +293,7 @@ export function Phone() {
       <main className="p-main">
         {tab === "today" && <TodayTab onOpen={setDetail} />}
         {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
-        {tab === "records" && <RecordsTab />}
+        {tab === "records" && <PhoneRecords />}
         {tab === "date" && date && <DateTab />}
         {tab === "more" && <MoreTab />}
       </main>

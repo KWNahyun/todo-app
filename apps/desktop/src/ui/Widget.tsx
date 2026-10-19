@@ -8,8 +8,8 @@ import { useApp, useData, useNow, useToday } from "../app/store.tsx";
 import { DEFAULT_HOTKEYS, type HotkeyAction, type PinMode } from "../platform/index.ts";
 import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right, Logo } from "./icons.tsx";
-import { DeadlineList, EventList, InputLine, Snackbar, TimelinePreview } from "./parts.tsx";
-import { MoodPicker } from "./Records.tsx";
+import { DeadlineList, EventList, InputLine, Snackbar } from "./parts.tsx";
+import { DayMemo, MoodPicker } from "./Records.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { AwayOverlay, HabitChips, PomoBar, ReviewSheet, useGuard } from "./WidgetGuard.tsx";
 
@@ -193,7 +193,7 @@ export function Widget() {
         {logOpen && (
           <>
             {f.habits && <HabitChips day={day} />}
-            <TimelinePreview day={day} now={now} limit={4} />
+            <DayMemo day={day} />
           </>
         )}
       </main>

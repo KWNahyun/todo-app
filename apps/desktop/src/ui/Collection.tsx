@@ -12,6 +12,7 @@ import { useApp, useData, useToday } from "../app/store.tsx";
 import { CollectionExport } from "./Export.tsx";
 import { Check, Close, Trash } from "./icons.tsx";
 import { ConflictNotice, PhotoField, Thumb } from "./photos.tsx";
+import { Sheet } from "./Sheet.tsx";
 import { Field, Stars, useAutosave } from "./Records.tsx";
 
 function Row({ s, r, on, onClick }: { s: Schema; r: RecordItem; on: boolean; onClick: () => void }) {
@@ -142,7 +143,8 @@ function Editor({ s, r, onClose }: { s: Schema; r: RecordItem; onClose: () => vo
   );
 }
 
-export function CollectionView({ s }: { s: Schema }) {
+/** phone: 목록만, 고르면 아래에서 올라오는 시트로 자세히 */
+export function CollectionView({ s, phone }: { s: Schema; phone?: boolean }) {
   const { rep, actions } = useApp();
   useData();
   const today = useToday();
@@ -165,7 +167,8 @@ export function CollectionView({ s }: { s: Schema }) {
     if (s.mode === "stages") fields.stage = 0;
     if (s.mode === "log") fields.day = today;
     if (choice && filter.choice) fields.f = { [choice.key]: filter.choice };
-    setSel(actions.addRecord(s.key, fields));
+    const id = actions.addRecord(s.key, fields);
+    if (!phone) setSel(id); // 휴대폰은 여러 개 이어서 적기 좋게 목록에 머묾
     setText("");
   };
   const statusTabs: [ListFilter["status"], string][] =
@@ -206,7 +209,11 @@ export function CollectionView({ s }: { s: Schema }) {
         {list.map((x) => <Row key={x.id} s={s} r={x} on={x.id === sel} onClick={() => setSel(x.id)} />)}
         {!list.length && <div className="empty">{s.empty}</div>}
       </div>
-      {r ? <Editor key={r.id} s={s} r={r} onClose={() => setSel(null)} /> : (
+      {phone ? r && (
+        <Sheet title={r.title} onClose={() => setSel(null)} full>
+          <Editor key={r.id} s={s} r={r} onClose={() => setSel(null)} />
+        </Sheet>
+      ) : r ? <Editor key={r.id} s={s} r={r} onClose={() => setSel(null)} /> : (
         <div className="rec-main"><div className="empty">왼쪽에서 하나를 고르면 자세히 적을 수 있어요.</div></div>
       )}
     </div>

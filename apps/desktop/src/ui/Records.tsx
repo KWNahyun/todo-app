@@ -80,7 +80,24 @@ export function useAutosave(value: string, save: (v: string) => void): [string, 
 
 // ---------- 다이어리 ----------
 
-function DiaryList({ day, setDay }: { day: string; setDay: (d: string) => void }) {
+/**
+ * 위젯 · 휴대폰 '오늘의 기록'의 메모 칸 (v1 하단 일기처럼) — 그날 다이어리 글과 같은 내용.
+ * 줄이 늘면 칸도 늘어남.
+ */
+export function DayMemo({ day }: { day: string }) {
+  const { rep, actions } = useApp();
+  useData();
+  const j = journalOf(rep, day);
+  const [text, change, flush] = useAutosave(j?.text ?? "", (v) => actions.saveJournal(journalOf(rep, day)?.id, day, v));
+  useEffect(() => () => flush(), [day]); // 날짜를 바꾸면 바로 저장
+  const rows = Math.min(10, Math.max(3, text.split("\n").length + 1));
+  return (
+    <textarea className="memo-box" rows={rows} value={text} placeholder="메모 · 오늘 있었던 일, 생각난 것…" aria-label="메모"
+      onChange={(e) => change(e.target.value)} onBlur={flush} />
+  );
+}
+
+export function DiaryList({ day, setDay }: { day: string; setDay: (d: string) => void }) {
   const { rep } = useApp();
   const [month, setMonth] = useState(day.slice(0, 7));
   const [q, setQ] = useState("");
@@ -110,7 +127,7 @@ function DiaryList({ day, setDay }: { day: string; setDay: (d: string) => void }
   );
 }
 
-function Essay({ day }: { day: string }) {
+export function Essay({ day }: { day: string }) {
   const { rep, actions } = useApp();
   const j = journalOf(rep, day);
   const [text, change, flush] = useAutosave(j?.text ?? "", (v) => actions.saveJournal(journalOf(rep, day)?.id, day, v));
@@ -131,7 +148,7 @@ function Essay({ day }: { day: string }) {
   );
 }
 
-function Timeline({ day }: { day: string }) {
+export function Timeline({ day }: { day: string }) {
   const { rep, actions } = useApp();
   const now = useNow(true, 60_000);
   const today = useToday();

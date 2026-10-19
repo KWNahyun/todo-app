@@ -572,3 +572,35 @@ html.phone .ctx-item { padding: 10px 10px; font-size: 14.5px; }
 .p-wide .rec-list { position: static; }
 .p-wide .rec-main .center-head .pop-anchor h1 { font-size: 18px; }
 .logo { vertical-align: -0.12em; margin-right: 2px; }
+
+/* ---------- 휴대폰 기록 탭 ---------- */
+.p-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: none; position: sticky; top: calc(56px + env(safe-area-inset-top, 0px)); z-index: 2; background: var(--bg); }
+.p-chips::-webkit-scrollbar { display: none; }
+.p-chips .chip { flex: none; border: 1px solid var(--border); background: var(--surface); padding: 7px 14px; border-radius: 999px; font-size: 14px; cursor: pointer; color: var(--text); }
+.p-chips .chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.p-daybar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+.p-daybtn { border: 0; background: none; font-family: var(--font-display); font-size: 19px; color: var(--text); display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; }
+.p-daybtn svg { width: 14px; height: 14px; color: var(--muted); }
+.p-today { justify-self: center; }
+.p-mood { display: flex; justify-content: center; }
+.p-mood .moods { gap: 14px; }
+.p-mood .face { width: 30px; height: 30px; }
+.p-summary { text-align: center; font-size: 12.5px; }
+.p-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.p-rec .essay-box { min-height: 46vh; font-size: 16px; line-height: 1.75; }
+.p-rec .compose input:not(.time-in) { flex-basis: 100%; order: 5; min-width: 0; font-size: 16px; }
+.p-rec .compose .btn-accent { margin-left: auto; }
+.p-rec .tl-row { grid-template-columns: 44px 14px minmax(0, 1fr) auto; gap: 8px; }
+.p-rec .timeline::before { left: 57px; }
+.p-rec .tl-row .row-del { opacity: 1; }
+.p-rec .records { grid-template-columns: minmax(0, 1fr); }
+.p-rec .rec-list { position: static; gap: 8px; }
+.p-rec .rec-row { padding: 12px 14px; font-size: 15px; }
+.p-rec .rec-row span { font-size: 13.5px; }
+.p-sheet-body .rec-list { position: static; }
+.p-sheet-body .rec-row { padding: 12px 14px; font-size: 15px; }
+
+/* 오늘의 기록 메모 칸 (위젯 · 휴대폰) */
+.memo-box { width: 100%; resize: vertical; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13.5px; line-height: 1.6; }
+.memo-box:focus { outline: none; border-color: var(--accent); }
+.phone .memo-box { font-size: 16px; }
