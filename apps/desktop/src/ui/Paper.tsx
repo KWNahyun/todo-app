@@ -346,7 +346,8 @@ export function PaperDiary({ day }: { day: string }) {
         </svg>
         {editItem && <TextEditor svg={svg.current!} it={editItem} onDone={(text) => {
           setEditing(null);
-          if (!text.trim()) actions.removeMany([editItem.id], "빈 글 지움");
+          // 새로 만든 빈 칸을 안 쓰고 두면 조용히 정리, 쓰던 글을 비웠으면 지운 것 (되돌리기 줄)
+          if (!text.trim()) actions.removeMany([editItem.id], editItem.text ? "글 지움" : "빈 글 정리", !!editItem.text);
           else if (text !== editItem.text) actions.update(editItem.id, { text, ...textSize(text, editItem.size ?? 24) }, "글 고침");
         }} />}
       </div>

@@ -343,9 +343,10 @@ export class Actions {
   }
 
   /** 여러 개를 한 번에 지우기 (지우개로 그은 획들 → 되돌리기 한 번에) */
-  removeMany(ids: string[], label: string): void {
+  /** announce=false: 사용자가 지운 게 아닐 때 (안 쓰고 둔 빈 글 정리 등) — 되돌리기 줄 안 띄움 */
+  removeMany(ids: string[], label: string, announce = true): void {
     const live = ids.filter((id) => this.rep.get(id));
-    if (live.length) this.track(label, live, () => live.forEach((id) => this.rep.remove(id)), true);
+    if (live.length) this.track(label, live, () => live.forEach((id) => this.rep.remove(id)), announce);
   }
 
   /** 모음(완료 방식): 완료 표시 · 이룬 날 */

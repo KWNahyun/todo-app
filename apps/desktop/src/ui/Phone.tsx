@@ -6,7 +6,7 @@
  * - 더보기: 통계 · 목표(습관 · 만다라트)
  * PC 와 같은 복제본 · 같은 동작(되돌리기 포함)을 그대로 씀 — 화면만 손에 맞게.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { addDays, clock, ddayText, longDay, shortDay, toDate } from "../app/dates.ts";
 import { THEMES, featureOn, sharedSettings } from "../app/appearance.ts";
 import { parseScheduleInput } from "../app/parse.ts";
@@ -17,7 +17,7 @@ import { MiniCalendar } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
 import { Left, Right } from "./icons.tsx";
 import { PhoneRecords } from "./PhoneRecords.tsx";
-import { Sheet } from "./Sheet.tsx";
+import { Sheet, setBackFallback } from "./Sheet.tsx";
 import { InputLine, Snackbar } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
 import { DayMemo, MoodPicker } from "./Records.tsx";
@@ -228,6 +228,10 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
   );
 }
 
+const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ["more", "더보기"]];
+/** 여기서 시작한 손짓은 탭 넘기기가 아님 */
+const NO_SWIPE = ".p-sheet-wrap, .p-chips, .rec-tabs, .w-chips, .seg, input, textarea, select, .minical, .overlay, .theme-pick, .tiles, table, .paper-stage";
+
 export function Phone() {
   const [tab, setTab] = useState<Tab>(() => {
     try {
@@ -241,7 +245,9 @@ export function Phone() {
   const [settings, setSettings] = useState(false);
   const { rep } = useApp();
   useData();
+  const [slide, setSlide] = useState<"l" | "r" | null>(null);
   const go = (t: Tab) => {
+    setSlide(tabs.findIndex(([k]) => k === t) > tabs.findIndex(([k]) => k === tab) ? "l" : "r");
     setTab(t);
     // 탭마다 맨 위부터 (앞 탭에서 내린 만큼 내려가 있지 않게)
     document.querySelector(".p-main")?.scrollTo({ top: 0 });
@@ -251,17 +257,43 @@ export function Phone() {
       // 기억 못 해도 그만
     }
   };
-  const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ["more", "더보기"]];
+  // 뒤로 버튼: 시트가 없으면 오늘 탭으로, 이미 오늘이면 앱이 뒤로(홈 화면)
+  useEffect(() => {
+    setBackFallback(() => {
+      if (tab === "today") return false;
+      go("today");
+      return true;
+    });
+    return () => setBackFallback(null);
+  });
+  // 좌우로 밀어 탭 바꾸기 — 옆으로 스크롤되는 곳 · 입력 칸 · 시트 안에서 시작한 건 빼고
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  const swipeStart = (e: TouchEvent) => {
+    const t = e.target as HTMLElement;
+    touch.current = t.closest(NO_SWIPE) ? null : { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY, t: Date.now() };
+  };
+  const swipeEnd = (e: TouchEvent) => {
+    const s0 = touch.current;
+    touch.current = null;
+    if (!s0) return;
+    const dx = e.changedTouches[0]!.clientX - s0.x;
+    const dy = e.changedTouches[0]!.clientY - s0.y;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - s0.t > 700) return;
+    const i = tabs.findIndex(([k]) => k === tab) + (dx < 0 ? 1 : -1);
+    if (i >= 0 && i < tabs.length) go(tabs[i]![0]);
+  };
   return (
     <div className="phone-app">
       <button className="icon-btn p-gear" aria-label="설정" onClick={() => setSettings(true)}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
       </button>
-      <main className="p-main">
-        {tab === "today" && <TodayTab onOpen={setDetail} />}
-        {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
-        {tab === "records" && <PhoneRecords />}
-        {tab === "more" && <MoreTab />}
+      <main className="p-main" onTouchStart={swipeStart} onTouchEnd={swipeEnd}>
+        <div key={tab} className={`p-page${slide ? ` slide-${slide}` : ""}`}>
+          {tab === "today" && <TodayTab onOpen={setDetail} />}
+          {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
+          {tab === "records" && <PhoneRecords />}
+          {tab === "more" && <MoreTab />}
+        </div>
       </main>
       <nav className="p-tabs" aria-label="탭">
         {tabs.map(([t, l]) => (
