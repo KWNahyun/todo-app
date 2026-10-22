@@ -159,6 +159,8 @@ export function PaperDiary({ day }: { day: string }) {
       return;
     }
     if (tool === "text") {
+      // 이 누름이 끝나며 초점을 종이로 가져가면 막 연 입력 칸이 바로 닫힘 → 기본 동작 막기
+      e.preventDefault();
       const size = 24;
       const id = create({ kind: "text", x: x - 4, y: y - size, text: "", size, font: "hand", color, ...textSize("", size) }, "글 추가");
       setTool("select");
@@ -344,8 +346,8 @@ export function PaperDiary({ day }: { day: string }) {
           )}
           {selected && !editing && <Selection it={shown(selected)} />}
         </svg>
-        {editItem && <TextEditor svg={svg.current!} it={editItem} onDone={(text) => {
-          setEditing(null);
+        {editItem && <TextEditor key={editItem.id} svg={svg.current!} it={editItem} onDone={(text) => {
+          setEditing((cur) => (cur === editItem.id ? null : cur)); // 그새 다른 글을 열었으면 그건 그대로
           // 새로 만든 빈 칸을 안 쓰고 두면 조용히 정리, 쓰던 글을 비웠으면 지운 것 (되돌리기 줄)
           if (!text.trim()) actions.removeMany([editItem.id], editItem.text ? "글 지움" : "빈 글 정리", !!editItem.text);
           else if (text !== editItem.text) actions.update(editItem.id, { text, ...textSize(text, editItem.size ?? 24) }, "글 고침");
@@ -418,14 +420,34 @@ function TextEditor({ svg, it, onDone }: { svg: SVGSVGElement; it: PageItem; onD
     done.current = true;
     onDone(text);
   };
-  useEffect(() => () => finish(latest.current), []);
+  // 정말 닫혔을 때만 (개발 모드의 '껐다 켜 보기'에선 바로 다시 켜지므로 건너뜀)
+  const alive = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      setTimeout(() => !alive.current && finish(latest.current), 0);
+    };
+  }, []);
+  // 칸을 연 누름(마우스 · 펜)이 끝난 뒤에 초점 — 바로 주면 그 누름이 초점을 다시 빼앗음
+  const box = useRef<HTMLTextAreaElement>(null);
+  const opened = useRef(Date.now());
+  useEffect(() => {
+    const t = setTimeout(() => box.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, []);
   const r = svg.getBoundingClientRect();
   const k = r.width / PAPER_W;
   const size = (it.size ?? 24) * (it.s ?? 1) * k;
   return (
-    <textarea className="paper-text" autoFocus value={v} placeholder="여기에 쓰기"
+    <textarea ref={box} className="paper-text" value={v} placeholder="여기에 쓰기"
       style={{ left: it.x * k, top: it.y * k, fontSize: size, fontFamily: FONT_FAMILY[it.font ?? "hand"], color: it.color ?? "#1d1d1b", transform: `rotate(${it.r ?? 0}deg)` }}
-      onChange={(e) => setV(e.target.value)} onBlur={() => finish(v)}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={(e) => {
+        // 연 직후 잠깐 초점이 빠지는 건 무시하고 다시 잡음
+        if (Date.now() - opened.current < 400) return void setTimeout(() => e.target.focus(), 0);
+        finish(v);
+      }}
       onKeyDown={(e) => e.key === "Escape" && (e.target as HTMLTextAreaElement).blur()} />
   );
 }
