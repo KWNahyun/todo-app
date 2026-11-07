@@ -10,7 +10,7 @@ import {
 } from "@dailytodo/core";
 import { dayOf } from "./dates.ts";
 import { parseInput, type Parsed } from "./parse.ts";
-import { siblings } from "./selectors.ts";
+import { BACKLOG, siblings } from "./selectors.ts";
 
 type Snap = { id: string; before: Record<string, unknown> | undefined };
 interface Entry {
@@ -487,11 +487,70 @@ export class Actions {
     });
   }
 
-  /** 오늘 정리하기: 고른 할 일을 다음 날로 (타이머는 멈춤) → 넘긴 수 */
-  carryTo(taskIds: string[], day: string): number {
+  // ---------- 할 일 창고 ----------
+
+  /** 창고에 적기 — '묶음 > 할 일' 도 됨 (시각 · 마감 꼴이어도 그냥 할 일로) */
+  addBacklog(text: string): string | null {
+    const s = text.trim();
+    if (!s) return null;
+    const top = this.topLevel(BACKLOG);
+    const [g, ...rest] = s.split(/\s*>\s*/);
+    const child = rest.join(" > ").trim();
+    let id = "";
+    if (g && child) {
+      const parent = top.find((t) => t.title === g && !t.done);
+      this.track(`창고에 '${g} > ${child}'`, parent ? [parent.id] : [], () => {
+        const made: string[] = [];
+        let pid = parent?.id;
+        if (!pid) made.push((pid = this.rep.create("task", { day: BACKLOG, title: g, done: false, order: this.orderAfterLast(top) })));
+        const kids = this.rep.list("task", (t) => t.parentId === pid).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1));
+        made.push((id = this.rep.create("task", { day: BACKLOG, title: child, done: false, parentId: pid, order: this.orderAfterLast(kids) })));
+        return made;
+      });
+    } else {
+      this.track(`창고에 '${s}'`, [], () => [(id = this.rep.create("task", { day: BACKLOG, title: s, done: false, order: this.orderAfterLast(top) }))]);
+    }
+    return id;
+  }
+
+  /**
+   * 할 일(묶음이면 하위까지)을 다른 날 · 창고로.
+   * 잰 시간이 없으면 옮김(원래 날 목록에서 빠짐), 있으면 남은 것만 복사 — 잰 시간은 원래 날 통계에 남게 (넘기기와 같음).
+   * 하위 하나만 옮기면 그 날의 같은 이름 묶음 아래로 (없으면 만듦).
+   */
+  sendTo(id: string, day: string): boolean {
+    const t = this.rep.get<"task">(id);
+    if (!t || t.day === day) return false;
+    const kids = this.rep.list("task", (c) => c.parentId === id);
+    const ids = [id, ...kids.map((k) => k.id)];
+    const where = day === BACKLOG ? "창고로" : day === dayOf(new Date(this.now())) ? "오늘로" : `${day.slice(5).replace("-", "/")}로`;
+    if (this.rep.list("session", (s) => ids.includes(s.taskId)).length) {
+      const undone = (kids.length ? kids : [t]).filter((x) => !x.done).map((x) => x.id);
+      return this.carryTo(undone, day, `'${t.title}' ${where} (잰 시간은 그날에 남김)`) > 0;
+    }
+    const parent = t.parentId ? this.rep.get<"task">(t.parentId) : undefined;
+    this.track(`'${t.title}' ${where}`, [...ids, ...(parent ? [parent.id] : [])], () => {
+      const made: string[] = [];
+      const top = this.topLevel(day);
+      if (parent) {
+        let pid = top.find((x) => x.title === parent.title && !x.done)?.id;
+        if (!pid) made.push((pid = this.rep.create("task", { day, title: parent.title, done: false, order: this.orderAfterLast(top) })));
+        const sibs = this.rep.list("task", (x) => x.parentId === pid).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1));
+        this.rep.update<"task">(id, { day, parentId: pid, order: this.orderAfterLast(sibs) });
+      } else {
+        this.rep.update<"task">(id, { day, order: this.orderAfterLast(top) });
+        for (const k of kids) this.rep.update<"task">(k.id, { day });
+      }
+      return made;
+    });
+    return true;
+  }
+
+  /** 오늘 정리하기 · 넘기기: 고른 할 일을 그 날로 복사 (타이머는 멈춤, 원래 날엔 잰 시간과 함께 남음) → 넘긴 수 */
+  carryTo(taskIds: string[], day: string, label = `내일로 ${taskIds.length}개 넘김`): number {
     if (!taskIds.length) return 0;
     const running = this.rep.list("session", (s) => taskIds.includes(s.taskId) && s.end == null).map((s) => s.id);
-    this.track(`내일로 ${taskIds.length}개 넘김`, [...taskIds, ...running], () => {
+    this.track(label, [...taskIds, ...running], () => {
       const made = taskIds.map((id) => {
         stopTask(this.rep, id, this.now());
         return this.copyTaskTo(id, day);

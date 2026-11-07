@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MemoryFs, Replica, isRunning, taskElapsedMs } from "@dailytodo/core";
 import { Actions } from "./actions.ts";
 import { featureOn, sharedSettings } from "./appearance.ts";
-import { dayTree, progress, timeline } from "./selectors.ts";
+import { BACKLOG, dayTree, progress, timeline } from "./selectors.ts";
 
 const DAY = "2026-10-15";
 
@@ -208,5 +208,49 @@ describe("동작 · 되돌리기", () => {
       [false, "점심 맛있었다"],
       [true, "회의"],
     ]);
+  });
+});
+
+describe("할 일 창고", () => {
+  const tree = (rep: Replica, day: string) => dayTree(rep, day).map((n) => [n.task.title, ...n.children.map((c) => `  ${c.title}`)]).flat();
+
+  it("담고 → 그날로 옮기면 창고에서 빠짐 (묶음 > 할 일 은 같은 이름 묶음 아래로)", async () => {
+    const { rep, a } = await setup();
+    a.addBacklog("영어 원서");
+    a.addBacklog("이사 > 박스 사기");
+    a.addBacklog("이사 > 전입신고");
+    expect(tree(rep, BACKLOG)).toEqual(["영어 원서", "이사", "  박스 사기", "  전입신고"]);
+    expect(dayTree(rep, DAY)).toEqual([]); // 날짜 목록엔 안 보임
+
+    const box = rep.list("task", (t) => t.title === "박스 사기")[0]!;
+    expect(a.sendTo(box.id, DAY)).toBe(true);
+    expect(tree(rep, DAY)).toEqual(["이사", "  박스 사기"]);
+    expect(tree(rep, BACKLOG)).toEqual(["영어 원서", "이사", "  전입신고"]);
+
+    a.undo();
+    expect(tree(rep, BACKLOG)).toEqual(["영어 원서", "이사", "  박스 사기", "  전입신고"]);
+  });
+
+  it("묶음째 옮기면 하위도 같이, 다시 창고로", async () => {
+    const { rep, a } = await setup();
+    a.add("KAMP > 모델링", DAY);
+    a.add("KAMP > 발표", DAY);
+    const g = rep.list("task", (t) => t.title === "KAMP")[0]!;
+    a.sendTo(g.id, BACKLOG);
+    expect(dayTree(rep, DAY)).toEqual([]);
+    expect(tree(rep, BACKLOG)).toEqual(["KAMP", "  모델링", "  발표"]);
+  });
+
+  it("잰 시간이 있는 할 일은 복사 — 시간은 원래 날에 남음", async () => {
+    const { rep, a, clock } = await setup();
+    const r = a.add("모델링", DAY);
+    const id = r.ok ? r.id : "";
+    a.toggleTimer(id);
+    clock.tick(30 * 60_000);
+    a.sendTo(id, BACKLOG);
+    expect(isRunning(rep, id)).toBe(false);
+    expect(tree(rep, DAY)).toEqual(["모델링"]);
+    expect(taskElapsedMs(rep, id, clock.now())).toBe(30 * 60_000);
+    expect(tree(rep, BACKLOG)).toEqual(["모델링"]);
   });
 });

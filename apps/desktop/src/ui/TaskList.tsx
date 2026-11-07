@@ -8,7 +8,7 @@ import { isRunning, taskElapsedMs, type Task } from "@dailytodo/core";
 import { featureOn } from "../app/appearance.ts";
 import { addDays, clock, dayOf, daysBetween, ddayText } from "../app/dates.ts";
 import { ContextMenu, type MenuItem } from "./ContextMenu.tsx";
-import type { TaskNode } from "../app/selectors.ts";
+import { BACKLOG, type TaskNode } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
 import { Caret, Check, Pause, Play } from "./icons.tsx";
 
@@ -20,8 +20,10 @@ interface Props {
   /** 우클릭 '상세 편집' (메인 창은 상세 패널, 위젯은 메인 창을 열어서) */
   onDetail?: (id: string) => void;
   compact?: boolean;
-  /** 휴대폰: 타이머 버튼 없음(첫 버전은 PC 에서만), 끌어서 정렬 대신 손가락 스크롤 — 길게 누르면 메뉴 */
+  /** 휴대폰: 끌어서 정렬 대신 손가락 스크롤 — 길게 누르면 메뉴 */
   phone?: boolean;
+  /** 이 목록의 날짜 — 창고에서 끌어 놓을 때 (data-drop="day") */
+  day?: string;
 }
 
 interface Drag {
@@ -31,6 +33,8 @@ interface Drag {
   active: boolean;
   index: number;
   lineY: number | null;
+  /** 창고 위에 놓는 중 */
+  toBacklog?: boolean;
 }
 
 /** 묶음 아래 '하위 할 일 추가…' 한 줄 (+ 버튼 · 우클릭). Enter 로 계속 더하고, Esc · 빈 채로 나가면 닫힘 */
@@ -54,7 +58,7 @@ function ChildInput({ parentId, onClose }: { parentId: string; onClose: () => vo
   );
 }
 
-export function TaskList({ tree, now, selected, onSelect, onDetail, compact, phone }: Props) {
+export function TaskList({ tree, now, selected, onSelect, onDetail, compact, phone, day }: Props) {
   const { actions, rep } = useApp();
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -70,8 +74,12 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
   }
 
   if (!tree.length) {
-    return <div className="empty">오늘 할 일을 위에 적어 보세요. 예) 모델링 · KAMP &gt; 발표 자료 · 13:30 회의</div>;
+    return <div className="empty" data-drop="day" data-day={day}>오늘 할 일을 위에 적어 보세요. 예) 모델링 · KAMP &gt; 발표 자료 · 13:30 회의</div>;
   }
+
+  /** 끌던 할 일을 창고 위에 놓는 중 */
+  const overBacklog = (e: { clientX: number; clientY: number }) =>
+    !!document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-drop="backlog"]');
 
   const rowsOf = (parent: string) =>
     [...(box.current?.querySelectorAll<HTMLElement>(`[data-parent="${parent}"]`) ?? [])];
@@ -101,12 +109,18 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
       const r = ref.getBoundingClientRect();
       lineY = (rows[index] ? r.top - 3 : r.bottom + 2) - top;
     }
-    setDrag({ ...drag, active: true, index, lineY });
+    const toBacklog = overBacklog(e);
+    document.querySelector('[data-drop="backlog"]')?.classList.toggle("drop-over", toBacklog);
+    document.body.classList.add("dt-dragging");
+    setDrag({ ...drag, active: true, index, lineY, toBacklog });
   };
 
   const onUp = (e: RPointerEvent, t: Task) => {
     if (!drag) return;
-    if (drag.active) actions.move(drag.id, drag.index);
+    document.querySelector('[data-drop="backlog"]')?.classList.remove("drop-over");
+    document.body.classList.remove("dt-dragging");
+    if (drag.active && overBacklog(e)) actions.sendTo(drag.id, BACKLOG);
+    else if (drag.active) actions.move(drag.id, drag.index);
     else if ((e.target as HTMLElement).closest("button") == null) onSelect?.(t.id);
     setDrag(null);
   };
@@ -152,6 +166,7 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
     }
     const undone = leaf ? (t.done ? [] : [t.id]) : kids.filter((k) => !k.done).map((k) => k.id);
     if (undone.length) items.push({ label: leaf ? "내일로 넘기기" : `남은 하위 ${undone.length}개 내일로 넘기기`, onClick: () => actions.carryTo(undone, addDays(t.day, 1)) });
+    if (!t.done) items.push({ label: "할 일 창고로 보내기", onClick: () => actions.sendTo(t.id, BACKLOG) });
     items.push({ label: "", separator: true }, { label: "지우기", danger: true, onClick: () => actions.removeTask(t.id) });
     return items;
   };
@@ -229,13 +244,13 @@ export function TaskList({ tree, now, selected, onSelect, onDetail, compact, pho
   };
 
   return (
-    <div className={`tasks${phone ? " phone-tasks" : ""}`} ref={box}>
+    <div className={`tasks${phone ? " phone-tasks" : ""}`} ref={box} data-drop="day" data-day={day ?? tree[0]?.task.day}>
       {tree.map((n) => [
         row(n.task, "", { group: n.children.length ? n : undefined }),
         ...(!n.task.collapsed || adding === n.task.id ? n.children.map((c) => row(c, n.task.id, { child: true })) : []),
         ...(adding === n.task.id ? [<ChildInput key={`add-${n.task.id}`} parentId={n.task.id} onClose={() => setAdding(null)} />] : []),
       ])}
-      {drag?.active && drag.lineY != null && <div className="drop-line" style={{ top: drag.lineY }} />}
+      {drag?.active && !drag.toBacklog && drag.lineY != null && <div className="drop-line" style={{ top: drag.lineY }} />}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.t)} onClose={() => setMenu(null)} />}
     </div>
   );

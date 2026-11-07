@@ -22,6 +22,7 @@ import { InputLine, Snackbar } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
 import { DayMemo, MoodPicker } from "./Records.tsx";
 import { Stats } from "./Stats.tsx";
+import { Backlog } from "./Backlog.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { HabitChips, ReviewSheet } from "./WidgetGuard.tsx";
 
@@ -82,7 +83,8 @@ function TodayTab({ onOpen }: { onOpen: (id: string) => void }) {
             <div className="muted num" style={{ fontSize: 12.5 }}>완료 {done}/{total} · 총 {clock(dayTotal(rep, tree, now))}</div>
           </>
         )}
-        <TaskList tree={tree} now={now} phone onSelect={onOpen} onDetail={onOpen} />
+        <TaskList tree={tree} now={now} phone onSelect={onOpen} onDetail={onOpen} day={day} />
+        <section className="card"><Backlog day={day} phone onDetail={onOpen} /></section>
         {day !== today && <button className="btn" onClick={() => setDay(today)}>오늘로</button>}
         <section className="card p-log">
           <div className="row" style={{ justifyContent: "space-between" }}>

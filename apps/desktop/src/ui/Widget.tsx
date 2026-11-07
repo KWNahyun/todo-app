@@ -9,6 +9,7 @@ import { DEFAULT_HOTKEYS, type HotkeyAction, type PinMode } from "../platform/in
 import { CalendarPopup } from "./Calendar.tsx";
 import { Close, Expand, Left, Minus, Pin, Right, Logo } from "./icons.tsx";
 import { DeadlineList, EventList, InputLine, Snackbar } from "./parts.tsx";
+import { Backlog } from "./Backlog.tsx";
 import { DayMemo, MoodPicker } from "./Records.tsx";
 import { TaskList } from "./TaskList.tsx";
 import { AwayOverlay, HabitChips, PomoBar, ReviewSheet, useGuard } from "./WidgetGuard.tsx";
@@ -182,7 +183,8 @@ export function Widget() {
         {guard.pomo && <PomoBar pomo={guard.pomo} setPomo={guard.setPomo} />}
         <InputLine day={day} today={today} />
         <div className="bar" aria-label={`완료 ${done}/${total}`}><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
-        <TaskList tree={tree} now={now} compact onDetail={openDetail} />
+        <TaskList tree={tree} now={now} compact onDetail={openDetail} day={day} />
+        <Backlog day={day} onDetail={openDetail} />
 
         <div className="row" style={{ justifyContent: "space-between" }}>
           <button className="sechead" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>

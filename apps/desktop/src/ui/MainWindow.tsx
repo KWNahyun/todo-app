@@ -16,6 +16,7 @@ import { Records } from "./Records.tsx";
 import { Stats } from "./Stats.tsx";
 import { Schedule } from "./Schedule.tsx";
 import { Settings } from "./Settings.tsx";
+import { Backlog } from "./Backlog.tsx";
 import { TaskList } from "./TaskList.tsx";
 
 /** 메뉴 — 기능을 꺼 두면 메뉴에서도 사라짐 */
@@ -78,8 +79,9 @@ function Today({ selected, setSelected }: { selected: string | null; setSelected
       <InputLine day={day} today={today} autoFocus />
       <div className="bar"><i style={{ width: total ? `${(done / total) * 100}%` : 0 }} /></div>
       <div className="cols">
-        <TaskList tree={tree} now={now} selected={selected} onSelect={(id) => setSelected(id === selected ? null : id)} onDetail={setSelected} />
+        <TaskList tree={tree} now={now} selected={selected} onSelect={(id) => setSelected(id === selected ? null : id)} onDetail={setSelected} day={day} />
         <div className="stack" style={{ gap: 12 }}>
+          <div className="card"><Backlog day={day} onDetail={setSelected} /></div>
           {featureOn(rep, "events") && <div className="card"><span className="label">{day === today ? "오늘 일정" : "이날 일정"}</span><EventList day={day} now={now} onSelect={setSelected} /></div>}
           {featureOn(rep, "deadlines") && <div className="card"><span className="label">다가오는 마감</span><DeadlineList today={today} onSelect={setSelected} /></div>}
           <div className="card"><span className="label">오늘의 기록</span><TimelinePreview day={day} now={now} /></div>

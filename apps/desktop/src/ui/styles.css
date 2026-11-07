@@ -629,3 +629,22 @@ html.phone .ctx-item { padding: 10px 10px; font-size: 14.5px; }
 @keyframes p-in-l { from { opacity: .25; } to { opacity: 1; } }
 @keyframes p-in-r { from { opacity: .25; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .p-page.slide-l, .p-page.slide-r { animation: none; } }
+
+/* ---------- 할 일 창고 ---------- */
+.backlog { display: grid; gap: 6px; border-radius: 10px; transition: outline-color .12s; outline: 2px dashed transparent; outline-offset: 3px; }
+.dt-dragging .backlog, .dt-dragging [data-drop="day"] { outline-color: var(--guide); }
+.backlog.drop-over, [data-drop="day"].drop-over { outline-color: var(--accent); background: var(--accent-soft); }
+.dt-dragging, .dt-dragging * { cursor: grabbing !important; user-select: none; }
+.bl-input input { font-size: 13px; }
+.bl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px; padding: 5px 4px 5px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 13px; cursor: grab; touch-action: pan-y; }
+.bl-row.group .bl-title { font-weight: 700; }
+.bl-row.child { margin-left: 18px; }
+.bl-row.dragging { opacity: .45; }
+.bl-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-go { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.bl-del { opacity: 0; }
+.bl-row:hover .bl-del, .bl-del:focus-visible { opacity: 1; }
+.phone .bl-del { opacity: 1; }
+.phone .bl-row { padding: 9px 6px 9px 12px; font-size: 15px; cursor: default; }
+.phone .bl-go { padding: 6px 10px; font-size: 13px; }
+.bl-ghost { position: fixed; z-index: 90; pointer-events: none; background: var(--accent); color: var(--on-accent); padding: 4px 10px; border-radius: 8px; font-size: 13px; box-shadow: var(--shadow); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

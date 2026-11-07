@@ -225,10 +225,14 @@ export function ReviewSheet({ day, onClose, onDone }: { day: string; onClose: ()
   const [d] = useState(() => reviewData(rep, day, now));
   const [carry, setCarry] = useState(() => new Set(d.undone.slice(0, 8).map((u) => u.id)));
   const [text, setText] = useState(journalOf(rep, day)?.text ?? "");
+  // 넘길 날: 그날 밤 정리면 다음 날, 며칠 지나 정리하면(하루 거른 날 등) 정리하는 오늘로
+  const today = dayOf(new Date(now));
+  const target = day < today ? today : addDays(day, 1);
+  const toWord = target === today ? "오늘" : "내일";
   const finish = () => {
     if (text !== (journalOf(rep, day)?.text ?? "")) actions.saveJournal(journalOf(rep, day)?.id, day, text);
-    const moved = actions.carryTo([...carry], addDays(day, 1));
-    onDone(moved ? `오늘 정리 완료 · 내일로 ${moved}개 넘겼어요. 수고했어요!` : "오늘 정리 완료 · 수고했어요!");
+    const moved = actions.carryTo([...carry], target, `${toWord}로 ${carry.size}개 넘김`);
+    onDone(moved ? `정리 완료 · ${toWord}로 ${moved}개 넘겼어요. 수고했어요!` : "정리 완료 · 수고했어요!");
   };
   return (
     <div className="overlay" role="dialog" aria-label="오늘 정리하기">
@@ -241,7 +245,7 @@ export function ReviewSheet({ day, onClose, onDone }: { day: string; onClose: ()
         )) : <div className="empty">기록된 일이 없어요</div>}
         {d.undone.length > 0 && (
           <>
-            <span className="label">내일로 넘길 일</span>
+            <span className="label">{toWord}로 넘길 일</span>
             {d.undone.slice(0, 8).map((u) => (
               <label key={u.id} className="row" style={{ gap: 8, fontSize: 13 }}>
                 <input type="checkbox" checked={carry.has(u.id)} onChange={(e) => {

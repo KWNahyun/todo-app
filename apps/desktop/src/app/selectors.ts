@@ -11,6 +11,12 @@ export interface TaskNode {
 }
 
 /** 그날 할 일: 묶음(상위) 아래 하위. 상위가 없거나 지워진 하위는 맨 위로 */
+/**
+ * 할 일 창고: 언제 할지 아직 안 정한 할 일. 날짜 칸에 이 값을 둠 → 날짜별 목록 · 통계(날짜 범위)엔 저절로 안 잡힘
+ * ("backlog" 는 어떤 "YYYY-MM-DD" 보다 뒤로 정렬됨)
+ */
+export const BACKLOG = "backlog";
+
 export function dayTree(rep: Replica, day: string): TaskNode[] {
   const tasks = rep.list("task", (t) => t.day === day);
   const ids = new Set(tasks.map((t) => t.id));

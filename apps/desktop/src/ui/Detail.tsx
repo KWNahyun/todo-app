@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { sessionsOf, taskElapsedMs, type Session } from "@dailytodo/core";
 import { clock, hhmm, toDate } from "../app/dates.ts";
+import { BACKLOG } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
 import { Close, Trash } from "./icons.tsx";
 
@@ -156,7 +157,7 @@ function TaskDetail({ id, now, onClose }: PanelProps) {
   return (
     <aside className="panel" aria-label="할 일 상세">
       <div className="panel-head">
-        <span className="label">할 일 상세 · {created.getMonth() + 1}월 {created.getDate()}일</span>
+        <span className="label">할 일 상세 · {t.day === BACKLOG ? "할 일 창고" : `${created.getMonth() + 1}월 ${created.getDate()}일`}</span>
         <button className="icon-btn" aria-label="닫기" onClick={onClose}><Close /></button>
       </div>
       <input className="title-input" value={title} aria-label="제목"
