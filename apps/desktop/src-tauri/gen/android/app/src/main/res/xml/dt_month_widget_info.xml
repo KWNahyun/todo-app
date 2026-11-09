@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 30분마다 다시 그림(오늘 표시가 날짜를 따라가게). 내용은 앱이 켜질 때 · 바뀔 때 바로 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp" android:minHeight="250dp"
+    android:targetCellWidth="4" android:targetCellHeight="4"
+    android:minResizeWidth="180dp" android:minResizeHeight="180dp"
+    android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/dt_month_widget"
+    android:previewLayout="@layout/dt_month_widget"
+    android:description="@string/dt_widget_desc" />

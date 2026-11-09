@@ -7,16 +7,15 @@
  * PC 와 같은 복제본 · 같은 동작(되돌리기 포함)을 그대로 씀 — 화면만 손에 맞게.
  */
 import { useEffect, useRef, useState, type TouchEvent } from "react";
-import { addDays, clock, ddayText, longDay, shortDay, toDate } from "../app/dates.ts";
+import { addDays, clock, dayOf, ddayText, longDay, shortDay } from "../app/dates.ts";
 import { THEMES, featureOn, sharedSettings } from "../app/appearance.ts";
-import { parseScheduleInput } from "../app/parse.ts";
-import { itemsByDay } from "../app/schedule.ts";
 import { dayTotal, dayTree, eventsOf, nextEvent, progress, runningSessions, upcomingDeadlines } from "../app/selectors.ts";
 import { useApp, useData, useNow, useSync, useToday } from "../app/store.tsx";
-import { MiniCalendar } from "./Calendar.tsx";
 import { Detail } from "./Detail.tsx";
 import { Left, Right } from "./icons.tsx";
+import { PhoneCalendar } from "./PhoneCalendar.tsx";
 import { PhoneRecords } from "./PhoneRecords.tsx";
+import { widgetData } from "../app/widget.ts";
 import { Sheet, setBackFallback } from "./Sheet.tsx";
 import { InputLine, Snackbar } from "./parts.tsx";
 import { Goals } from "./Goals.tsx";
@@ -113,67 +112,6 @@ function TodayTab({ onOpen }: { onOpen: (id: string) => void }) {
 
 // ---------- 일정 ----------
 
-function ScheduleTab({ onOpen }: { onOpen: (id: string) => void }) {
-  const { rep, actions } = useApp();
-  useData();
-  const today = useToday();
-  const [day, setDay] = useState(today);
-  const [add, setAdd] = useState<"event" | "deadline" | null>(null);
-  const [text, setText] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const days = Array.from({ length: 7 }, (_, i) => addDays(day, i));
-  const items = itemsByDay(rep, days);
-  const submit = () => {
-    const p = parseScheduleInput(text, add!, day, today);
-    if (p.kind === "error") return setMsg(p.message);
-    actions.addDated(p);
-    setText("");
-    setMsg(null);
-    setAdd(null);
-    setDay(p.kind === "event" ? p.day : p.date);
-  };
-  return (
-    <>
-      <header className="p-head"><h1>일정</h1></header>
-      <div className="p-body">
-        <div className="p-cal"><MiniCalendar value={day} today={today} onPick={setDay} /></div>
-        {days.map((d) => {
-          const it = items.get(d)!;
-          if (d !== day && !it.events.length && !it.deadlines.length) return null;
-          return (
-            <section key={d} className="p-day">
-              <div className={`day-h${toDate(d).getDay() === 0 ? " sun" : ""}`}>{shortDay(d)}{d === today ? " · 오늘" : ""}</div>
-              {it.deadlines.map((x) => (
-                <div key={x.id} className="dl p-dl clickable" onClick={() => onOpen(x.id)}><span className="tag tag-danger">마감</span><span className="what">{x.title}</span></div>
-              ))}
-              {it.events.map((x) => (
-                <div key={x.id} className="ev clickable" onClick={() => onOpen(x.id)}><span className="when num">{x.time ?? "미정"}</span><span className="what">{x.title}</span></div>
-              ))}
-              {d === day && !it.events.length && !it.deadlines.length && <div className="empty">일정 · 마감 없음</div>}
-            </section>
-          );
-        })}
-      </div>
-      <button className="fab" aria-label="일정 추가" onClick={() => setAdd("event")}>＋</button>
-      {add && (
-        <Sheet title={`${shortDay(day)}에 추가`} onClose={() => setAdd(null)}>
-          <div className="seg" role="group" aria-label="종류">
-            <button aria-pressed={add === "event"} onClick={() => setAdd("event")}>일정</button>
-            <button aria-pressed={add === "deadline"} onClick={() => setAdd("deadline")}>마감</button>
-          </div>
-          <div className="input">
-            <input autoFocus value={text} aria-label="일정 입력" placeholder={add === "event" ? "13:30 회의 · 10/7 MT" : "KAMP 제출 · 10/20 보고서"}
-              onChange={(e) => { setText(e.target.value); setMsg(null); }}
-              onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && submit()} />
-            <button className="btn btn-accent" onClick={submit}>추가</button>
-          </div>
-          {msg && <div className="input-msg">{msg}</div>}
-        </Sheet>
-      )}
-    </>
-  );
-}
-
 // ---------- 더보기: 통계 · 목표 (PC 화면을 그대로, 좁은 폭은 CSS 로) ----------
 
 function MoreTab() {
@@ -230,9 +168,15 @@ function PhoneSettings({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** MainActivity.kt 의 window.DTAndroid */
+interface AndroidBridge {
+  setWidgetData?: (json: string) => void;
+  takeLaunchDate?: () => string | null;
+}
+
 const tabs: [Tab, string][] = [["today", "오늘"], ["schedule", "일정"], ["records", "기록"], ["more", "더보기"]];
 /** 여기서 시작한 손짓은 탭 넘기기가 아님 */
-const NO_SWIPE = ".p-sheet-wrap, .p-chips, .rec-tabs, .w-chips, .seg, input, textarea, select, .minical, .overlay, .theme-pick, .tiles, table, .paper-stage";
+const NO_SWIPE = ".p-month, .p-sheet-wrap, .p-chips, .rec-tabs, .w-chips, .seg, input, textarea, select, .minical, .overlay, .theme-pick, .tiles, table, .paper-stage";
 
 export function Phone() {
   const [tab, setTab] = useState<Tab>(() => {
@@ -259,6 +203,35 @@ export function Phone() {
       // 기억 못 해도 그만
     }
   };
+  // 홈 화면 위젯: 바뀔 때마다(모아서) 날짜별 일정을 넘김 · 위젯에서 날짜를 누르고 들어오면 그날 일정
+  const [openDay, setOpenDay] = useState<{ day: string; n: number } | undefined>();
+  useEffect(() => {
+    const bridge = (window as unknown as { DTAndroid?: AndroidBridge }).DTAndroid;
+    if (!bridge) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const push = () => {
+      clearTimeout(t);
+      t = setTimeout(() => bridge.setWidgetData?.(JSON.stringify(widgetData(rep, dayOf(new Date())))), 1500);
+    };
+    const launch = () => {
+      const d = bridge.takeLaunchDate?.();
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        go("schedule");
+        setOpenDay({ day: d, n: Date.now() });
+      }
+    };
+    push();
+    launch();
+    const off = rep.subscribe(push);
+    const vis = () => document.visibilityState === "visible" && (launch(), push());
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      off();
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", vis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rep]);
   // 뒤로 버튼: 시트가 없으면 오늘 탭으로, 이미 오늘이면 앱이 뒤로(홈 화면)
   useEffect(() => {
     setBackFallback(() => {
@@ -292,7 +265,7 @@ export function Phone() {
       <main className="p-main" onTouchStart={swipeStart} onTouchEnd={swipeEnd}>
         <div key={tab} className={`p-page${slide ? ` slide-${slide}` : ""}`}>
           {tab === "today" && <TodayTab onOpen={setDetail} />}
-          {tab === "schedule" && <ScheduleTab onOpen={setDetail} />}
+          {tab === "schedule" && <PhoneCalendar onOpen={setDetail} openDay={openDay} />}
           {tab === "records" && <PhoneRecords />}
           {tab === "more" && <MoreTab />}
         </div>

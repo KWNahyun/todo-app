@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="dt_widget_desc">이번 달 일정 · 마감 (Daily Todo)</string>
+  <color name="dt_w_bg">#F2FFFFFF</color>
+  <color name="dt_w_text">#1D1D1B</color>
+  <color name="dt_w_muted">#8A8F8B</color>
+  <color name="dt_w_faint">#C4C7C4</color>
+  <color name="dt_w_event">#2F6A4C</color>
+  <color name="dt_w_deadline">#C2412D</color>
+  <color name="dt_w_accent">#2F6A4C</color>
+  <color name="dt_w_on_accent">#FFFFFF</color>
+  <color name="dt_w_sun">#C2412D</color>
+  <color name="dt_w_sat">#3B6FB6</color>
+</resources>

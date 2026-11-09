@@ -648,3 +648,27 @@ html.phone .ctx-item { padding: 10px 10px; font-size: 14.5px; }
 .phone .bl-row { padding: 9px 6px 9px 12px; font-size: 15px; cursor: default; }
 .phone .bl-go { padding: 6px 10px; font-size: 13px; }
 .bl-ghost { position: fixed; z-index: 90; pointer-events: none; background: var(--accent); color: var(--on-accent); padding: 4px 10px; border-radius: 8px; font-size: 13px; box-shadow: var(--shadow); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- 휴대폰 일정: 달력 앱처럼 (날짜 칸 아래 그날 일정) ---------- */
+.pc-head h1 { flex: 1; text-align: center; font-size: 20px; }
+.pc-head .pc-today { position: absolute; right: 52px; }
+.p-month {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--border);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  height: calc(100dvh - 140px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); min-height: 460px;
+}
+.pm-wd { background: var(--bg); text-align: center; font-size: 11.5px; color: var(--muted); padding: 4px 0; }
+.pm-wd.sun, .pm-n.sun { color: var(--danger, #c0392b); }
+.pm-wd.sat, .pm-n.sat { color: #3b6fb6; }
+.pm-cell { background: var(--bg); border: 0; padding: 3px 2px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 2px; overflow: hidden; text-align: left; cursor: pointer; color: var(--text); min-height: 0; font: inherit; }
+.pm-cell:active { background: var(--surface2); }
+.pm-cell.out { opacity: .38; }
+.pm-n { align-self: center; font-size: 12.5px; font-weight: 600; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; flex: none; }
+.pm-cell.today .pm-n { background: var(--accent); color: var(--on-accent); }
+.pm-item { font-size: 10.5px; line-height: 1.3; padding: 1px 3px; border-radius: 3px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: clip; flex: none; }
+.pm-item.dl { background: color-mix(in srgb, var(--danger, #c0392b) 14%, transparent); color: var(--danger, #c0392b); }
+.pm-more { font-size: 10px; color: var(--muted); padding-left: 3px; flex: none; }
+.pd-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 11px 12px; text-align: left; font: inherit; font-size: 15px; color: var(--text); cursor: pointer; }
+.pd-row .when { width: 48px; color: var(--accent); font-weight: 700; flex: none; }
+.pd-row .what { flex: 1; min-width: 0; }
+.pd-add { display: grid; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }

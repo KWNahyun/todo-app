@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="dt_w_bg">#F0182219</color>
+  <color name="dt_w_text">#E9EEE9</color>
+  <color name="dt_w_muted">#93A096</color>
+  <color name="dt_w_faint">#4E5A51</color>
+  <color name="dt_w_event">#9ED29A</color>
+  <color name="dt_w_deadline">#E27B6B</color>
+  <color name="dt_w_accent">#8CC084</color>
+  <color name="dt_w_on_accent">#102017</color>
+  <color name="dt_w_sun">#E27B6B</color>
+  <color name="dt_w_sat">#7FA7E0</color>
+</resources>

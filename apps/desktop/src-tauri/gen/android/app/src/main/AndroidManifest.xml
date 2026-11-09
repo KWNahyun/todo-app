@@ -29,6 +29,14 @@
             </intent-filter>
         </activity>
 
+        <!-- 홈 화면 달력 위젯 -->
+        <receiver android:name=".MonthWidget" android:exported="false" android:label="Daily Todo 달력">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/dt_month_widget_info" />
+        </receiver>
+
         <provider
           android:name="androidx.core.content.FileProvider"
           android:authorities="${applicationId}.fileprovider"

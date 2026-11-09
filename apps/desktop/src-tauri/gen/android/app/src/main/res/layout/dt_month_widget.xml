@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Daily Todo 홈 화면 달력 위젯 (MonthWidget.kt 가 칸을 채움). 이 파일은 칸 42개라 스크립트로 만듦 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/dt_widget_bg" android:padding="8dp">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/prev" android:layout_width="32dp" android:layout_height="28dp" android:gravity="center" android:text="‹" android:textSize="18sp" android:textColor="@color/dt_w_muted" />
+    <TextView android:id="@+id/title" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center"
+        android:textSize="14sp" android:textStyle="bold" android:textColor="@color/dt_w_text" />
+    <TextView android:id="@+id/next" android:layout_width="32dp" android:layout_height="28dp" android:gravity="center" android:text="›" android:textSize="18sp" android:textColor="@color/dt_w_muted" />
+  </LinearLayout>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="2dp">
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="일" android:textSize="9.5sp" android:textColor="@color/dt_w_sun" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="월" android:textSize="9.5sp" android:textColor="@color/dt_w_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="화" android:textSize="9.5sp" android:textColor="@color/dt_w_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="수" android:textSize="9.5sp" android:textColor="@color/dt_w_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="목" android:textSize="9.5sp" android:textColor="@color/dt_w_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="금" android:textSize="9.5sp" android:textColor="@color/dt_w_muted" />
+      <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center"
+          android:text="토" android:textSize="9.5sp" android:textColor="@color/dt_w_sat" />
+  </LinearLayout>
+    <LinearLayout android:id="@+id/r0" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d0" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e0" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d1" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e1" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d2" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e2" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d3" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e3" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d4" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e4" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d5" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e5" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d6" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e6" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/r1" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d7" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e7" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d8" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e8" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d9" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e9" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c10" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d10" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e10" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c11" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d11" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e11" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c12" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d12" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e12" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c13" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d13" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e13" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/r2" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c14" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d14" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e14" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c15" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d15" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e15" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c16" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d16" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e16" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c17" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d17" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e17" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c18" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d18" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e18" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c19" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d19" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e19" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c20" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d20" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e20" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/r3" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c21" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d21" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e21" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c22" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d22" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e22" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c23" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d23" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e23" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c24" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d24" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e24" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c25" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d25" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e25" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c26" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d26" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e26" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c27" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d27" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e27" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/r4" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c28" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d28" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e28" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c29" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d29" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e29" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c30" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d30" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e30" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c31" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d31" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e31" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c32" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d32" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e32" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c33" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d33" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e33" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c34" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d34" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e34" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/r5" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+      <LinearLayout android:id="@+id/c35" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d35" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e35" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c36" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d36" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e36" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c37" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d37" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e37" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c38" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d38" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e38" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c39" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d39" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e39" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c40" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d40" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e40" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+      <LinearLayout android:id="@+id/c41" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+          android:orientation="vertical" android:paddingTop="1dp" android:paddingStart="1dp" android:paddingEnd="1dp">
+        <TextView android:id="@+id/d41" android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center_horizontal"
+            android:gravity="center" android:textSize="10.5sp" android:textColor="@color/dt_w_text" />
+        <TextView android:id="@+id/e41" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8.5sp" android:lineSpacingMultiplier="0.95" android:maxLines="4" android:ellipsize="end" android:textColor="@color/dt_w_event" />
+      </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

@@ -13,10 +13,25 @@ import androidx.activity.enableEdgeToEdge
 
 class MainActivity : TauriActivity() {
   private var web: WebView? = null
+  /** 위젯에서 누른 날짜 (화면이 takeLaunchDate 로 한 번 가져감) */
+  @Volatile private var launchDate: String? = null
+
+  private fun takeDate(intent: Intent?) {
+    val d = intent?.data
+    if (d?.scheme == "dailytodo" && d.host == "day") launchDate = d.lastPathSegment
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    takeDate(intent)
+    // 이미 떠 있던 화면에도 알림 (보이게 될 때 화면이 가져감)
+    web?.post { web?.evaluateJavascript("document.dispatchEvent(new Event('visibilitychange'))", null) }
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    takeDate(intent)
     // 뒤로 버튼: 화면에 먼저 물어봄 (열린 시트 닫기 → 오늘 탭으로), 화면이 안 쓰면 앱을 뒤로 (끄지 않고 홈으로)
     onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
@@ -39,6 +54,28 @@ class MainActivity : TauriActivity() {
   }
 
   inner class Bridge {
+    /** 홈 화면 위젯 내용 (app/widget.ts) → filesDir/widget.json → 위젯 다시 그림 */
+    @JavascriptInterface
+    fun setWidgetData(json: String) {
+      try {
+        val f = java.io.File(filesDir, "widget.json")
+        val tmp = java.io.File(filesDir, "widget.json.tmp")
+        tmp.writeText(json)
+        tmp.renameTo(f)
+        MonthWidget.refreshAll(this@MainActivity)
+      } catch (e: Exception) {
+        // 위젯이 못 받아도 앱은 그대로
+      }
+    }
+
+    /** 위젯에서 누르고 들어온 날짜 ("YYYY-MM-DD", 없으면 null) — 한 번만 */
+    @JavascriptInterface
+    fun takeLaunchDate(): String? {
+      val d = launchDate
+      launchDate = null
+      return d
+    }
+
     @JavascriptInterface
     fun openStorageSettings() {
       runOnUiThread {
