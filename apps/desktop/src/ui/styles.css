@@ -672,3 +672,9 @@ html.phone .ctx-item { padding: 10px 10px; font-size: 14.5px; }
 .pd-row .when { width: 48px; color: var(--accent); font-weight: 700; flex: none; }
 .pd-row .what { flex: 1; min-width: 0; }
 .pd-add { display: grid; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+
+/* 여러 날 일정 · 일정 메모 · 습관 보관 */
+.pm-item.multi { background: var(--accent); color: var(--on-accent); }
+.pm-item.multi.cont { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -3px; padding-left: 6px; }
+.pd-note { display: block; font-size: 13px; color: var(--muted); white-space: pre-wrap; margin-top: 2px; }
+.habit-archive { padding: 2px 8px; font-size: 12px; }

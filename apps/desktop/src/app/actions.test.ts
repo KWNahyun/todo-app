@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MemoryFs, Replica, isRunning, taskElapsedMs } from "@dailytodo/core";
 import { Actions } from "./actions.ts";
 import { featureOn, sharedSettings } from "./appearance.ts";
-import { BACKLOG, dayTree, progress, timeline } from "./selectors.ts";
+import { BACKLOG, dayTree, eventsOf, progress, timeline } from "./selectors.ts";
+import { parseScheduleInput } from "./parse.ts";
 
 const DAY = "2026-10-15";
 
@@ -252,5 +253,41 @@ describe("할 일 창고", () => {
     expect(tree(rep, DAY)).toEqual(["모델링"]);
     expect(taskElapsedMs(rep, id, clock.now())).toBe(30 * 60_000);
     expect(tree(rep, BACKLOG)).toEqual(["모델링"]);
+  });
+});
+
+describe("여러 날 일정 · 습관 보관", () => {
+  it("'11/14~11/15 여행' → 두 날 모두에 보이고, 옮기면 기간째", async () => {
+    const { rep, a } = await setup();
+    const r = a.add("10/16~10/17 MT", DAY);
+    expect(r.ok).toBe(true);
+    const e = rep.list("event")[0]!;
+    expect(e).toMatchObject({ day: "2026-10-16", endDay: "2026-10-17", title: "MT", time: null });
+    expect(eventsOf(rep, "2026-10-16").map((x) => x.title)).toEqual(["MT"]);
+    expect(eventsOf(rep, "2026-10-17").map((x) => x.title)).toEqual(["MT"]);
+    expect(eventsOf(rep, "2026-10-18")).toEqual([]);
+    a.moveToDay(e.id, "2026-10-20");
+    expect(rep.get<"event">(e.id)).toMatchObject({ day: "2026-10-20", endDay: "2026-10-21" });
+  });
+
+  it("'12/31~1/1' 은 다음 해로, '10/16~18' 은 같은 달", async () => {
+    const { rep, a } = await setup();
+    a.addDated(parseScheduleInput("12/31~1/1 해돋이", "event", DAY, DAY) as Parameters<Actions["addDated"]>[0]);
+    a.addDated(parseScheduleInput("10/16~18 여행", "event", DAY, DAY) as Parameters<Actions["addDated"]>[0]);
+    expect(rep.list("event").map((x) => [x.title, x.day, x.endDay])).toEqual(expect.arrayContaining([
+      ["해돋이", "2026-12-31", "2027-01-01"],
+      ["여행", "2026-10-16", "2026-10-18"],
+    ]));
+  });
+
+  it("습관 보관 → 다시 꺼내기", async () => {
+    const { rep, a } = await setup();
+    const id = a.create("habit", { name: "달리기" }, "추가");
+    a.toggleHabit(id, DAY);
+    a.archiveHabit(id, true, DAY);
+    expect(rep.get<"habit">(id)).toMatchObject({ archived: true, archivedOn: DAY });
+    expect(rep.list("habitCheck")).toHaveLength(1); // 기록은 남음
+    a.archiveHabit(id, false, DAY);
+    expect(rep.get<"habit">(id)).toMatchObject({ archived: false, archivedOn: null });
   });
 });

@@ -53,6 +53,9 @@ export interface Event extends Base {
   time?: string | null;
   title: string;
   remindMin?: number | null;
+  /** 여러 날 일정의 마지막 날 (그날 포함, 없으면 하루) — 1박 2일 여행 등 */
+  endDay?: Day | null;
+  note?: string;
 }
 
 export interface Deadline extends Base {
@@ -77,6 +80,9 @@ export interface Habit extends Base {
   type: "habit";
   name: string;
   order?: string;
+  /** 보관 — 체크 칸 · 통계에서 빠짐 (기록은 남음) */
+  archived?: boolean;
+  archivedOn?: Day | null;
 }
 
 /** 습관 체크 하나 = 항목 하나 (지우면 체크 해제) */

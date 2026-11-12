@@ -4,7 +4,7 @@
  * 줄: 마감은 '◆ 이름', 일정은 시각 순 '13:30 이름' (시각 없으면 이름만)
  */
 import type { Replica } from "@dailytodo/core";
-import { dayOf, toDate } from "./dates.ts";
+import { addDays, dayOf, toDate } from "./dates.ts";
 
 export interface WidgetData {
   v: 1;
@@ -20,8 +20,12 @@ export function widgetData(rep: Replica, today: string, now = Date.now()): Widge
   const days: Record<string, string[]> = {};
   const push = (d: string, s: string) => (days[d] ??= []).push(s);
   for (const x of rep.list("deadline", (x) => x.date >= from && x.date <= to).sort((a, b) => a.title.localeCompare(b.title))) push(x.date, `◆ ${x.title}`);
-  const events = rep.list("event", (e) => e.day >= from && e.day <= to)
+  const events = rep.list("event", (e) => e.day <= to && (e.endDay ?? e.day) >= from)
     .sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "") || a.title.localeCompare(b.title));
-  for (const e of events) push(e.day, e.time ? `${e.time} ${e.title}` : e.title);
+  for (const e of events) {
+    push(e.day, e.time ? `${e.time} ${e.title}` : e.title);
+    // 여러 날 일정: 이어지는 날엔 '› 이름'
+    for (let d = addDays(e.day, 1); e.endDay && d <= e.endDay && d <= to; d = addDays(d, 1)) if (d >= from) push(d, `› ${e.title}`);
+  }
   return { v: 1, at: now, days };
 }

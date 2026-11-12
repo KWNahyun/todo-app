@@ -195,7 +195,7 @@ export function PomoBar({ pomo, setPomo }: { pomo: Pomo; setPomo: (p: Pomo | nul
 export function HabitChips({ day }: { day: string }) {
   const { rep, actions } = useApp();
   useData();
-  const habits = rep.list("habit").sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1));
+  const habits = rep.list("habit", (h) => !h.archived).sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1));
   if (!habits.length) return null;
   const checks = new Set(rep.list("habitCheck").map((c) => `${c.habitId}|${c.day}`));
   const streak = (id: string) => {
@@ -260,7 +260,7 @@ export function ReviewSheet({ day, onClose, onDone }: { day: string; onClose: ()
             {d.undone.length > 8 && <span className="faint" style={{ fontSize: 12 }}>외 {d.undone.length - 8}개는 그대로 둬요</span>}
           </>
         )}
-        {featureOn(rep, "habits") && rep.list("habit").length > 0 && (<><span className="label">습관</span><HabitChips day={day} /></>)}
+        {featureOn(rep, "habits") && rep.list("habit", (h) => !h.archived).length > 0 && (<><span className="label">습관</span><HabitChips day={day} /></>)}
         {featureOn(rep, "mood") && (<><span className="label">기분</span><MoodPicker day={day} /></>)}
         <label className="label" htmlFor="review-text">한 줄 회고</label>
         <textarea id="review-text" className="field" rows={4} value={text} onChange={(e) => setText(e.target.value)} />

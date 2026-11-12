@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { at, dayOf, ddayText, hhmm, until } from "../app/dates.ts";
 import { previewKind } from "../app/parse.ts";
-import { eventsOf, nextEvent, timeline, upcomingDeadlines } from "../app/selectors.ts";
+import { eventSpan, eventWhen, eventsOf, nextEvent, timeline, upcomingDeadlines } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
 
 /** 입력 한 줄. 왼쪽에 지금 무엇으로 들어갈지 표시 */
@@ -58,8 +58,8 @@ export function EventList({ day, now, limit, onSelect }: { day: string; now: num
         return (
           <div key={e.id} className={`ev${e === next ? " next" : ""}${past ? " past" : ""}${onSelect ? " clickable" : ""}`}
             onClick={onSelect && (() => onSelect(e.id))}>
-            <span className="when num">{e.time ?? "미정"}</span>
-            <span className="what" title={e.title}>{e.title}</span>
+            <span className="when num">{eventWhen(e, day)}</span>
+            <span className="what" title={e.note ? `${e.title}\n${e.note}` : e.title}>{e.title}{eventSpan(e) && <span className="faint num"> · {eventSpan(e)}</span>}</span>
             {e === next && <span className="left">{until(at(day, e.time!) - now)}</span>}
           </div>
         );

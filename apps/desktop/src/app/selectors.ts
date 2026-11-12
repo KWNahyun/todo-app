@@ -51,13 +51,27 @@ export function dayTotal(rep: Replica, tree: TaskNode[], now: number): number {
 
 export function eventsOf(rep: Replica, day: string): Event[] {
   // 시간 미정은 맨 위, 그다음 시간 순
-  return rep.list("event", (e) => e.day === day).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "") || a.title.localeCompare(b.title));
+  // 여러 날 일정은 기간의 모든 날에 (먼저 시작한 것이 위)
+  return rep.list("event", (e) => e.day === day || (!!e.endDay && e.day < day && day <= e.endDay))
+    .sort((a, b) => (a.day === day ? 1 : 0) - (b.day === day ? 1 : 0) || (a.time ?? "").localeCompare(b.time ?? "") || a.title.localeCompare(b.title));
 }
 
 /** 다음 일정 (지금 이후 첫 일정) */
 export function nextEvent(events: Event[], day: string, now: number): Event | undefined {
   if (day !== dayOf(new Date(now))) return undefined;
-  return events.find((e) => e.time && at(day, e.time) > now);
+  return events.find((e) => e.day === day && e.time && at(day, e.time) > now);
+}
+
+/** 여러 날 일정의 기간 '11/14~11/15' (하루짜리면 빈 글) */
+export function eventSpan(e: Event): string {
+  if (!e.endDay || e.endDay <= e.day) return "";
+  const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+  return `${md(e.day)}~${md(e.endDay)}`;
+}
+
+/** 그날 보이는 시각 칸: 첫날은 시각(없으면 미정), 이어지는 날은 '›' */
+export function eventWhen(e: Event, day: string, none = "미정"): string {
+  return e.day === day ? (e.time ?? none) : "›";
 }
 
 export interface DeadlineView extends Deadline {
@@ -96,7 +110,7 @@ export function timeline(rep: Replica, day: string, now: number): TimelineItem[]
     });
   }
   for (const e of eventsOf(rep, day)) {
-    if (e.time) items.push({ id: e.id, at: at(day, e.time), text: e.title, auto: true, kind: "event" });
+    if (e.time && e.day === day) items.push({ id: e.id, at: at(day, e.time), text: e.title, auto: true, kind: "event" });
   }
   // 같은 시각이면 자동 항목(완료 등)이 먼저 — "완료하고 나서 남긴 기록" 순서
   return items.sort((a, b) => a.at - b.at || Number(b.auto) - Number(a.auto));

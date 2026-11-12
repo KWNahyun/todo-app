@@ -6,6 +6,7 @@ import { useState, type DragEvent } from "react";
 import type { Deadline, Event } from "@dailytodo/core";
 import { daysBetween, ddayText, shortDay, toDate } from "../app/dates.ts";
 import { parseScheduleInput } from "../app/parse.ts";
+import { eventSpan, eventWhen } from "../app/selectors.ts";
 import { itemsByDay, rangeDays, sameMonth, shiftAnchor, type RangeMode } from "../app/schedule.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
 import { CalendarPopup } from "./Calendar.tsx";
@@ -25,16 +26,16 @@ interface ItemProps {
   onSelect: (id: string) => void;
 }
 
-function EventChip({ e, selected, onSelect }: { e: Event } & Omit<ItemProps, "today">) {
+function EventChip({ e, day, selected, onSelect }: { e: Event; day: string } & Omit<ItemProps, "today">) {
   return (
     <button
       className={`sch-item${selected === e.id ? " on" : ""}`}
       draggable
       onDragStart={(ev) => ev.dataTransfer.setData("text/x-dt-id", e.id)}
       onClick={() => onSelect(e.id)}
-      title={e.title}
+      title={eventSpan(e) ? `${e.title} (${eventSpan(e)})` : e.title}
     >
-      <span className="when num">{e.time ?? "미정"}</span>
+      <span className="when num">{eventWhen(e, day)}</span>
       <span className="what">{e.title}</span>
     </button>
   );
@@ -113,7 +114,7 @@ export function Schedule({ selected, onSelect }: { selected: string | null; onSe
     const it = items.get(d) ?? { events: [], deadlines: [] };
     const all = [
       ...it.deadlines.map((x) => <DeadlineChip key={x.id} d={x} today={today} selected={selected} onSelect={onSelect} />),
-      ...it.events.map((x) => <EventChip key={x.id} e={x} selected={selected} onSelect={onSelect} />),
+      ...it.events.map((x) => <EventChip key={x.id} e={x} day={d} selected={selected} onSelect={onSelect} />),
     ];
     if (!limit || all.length <= limit) return all;
     return [...all.slice(0, limit - 1), <span key="more" className="more">+{all.length - limit + 1}</span>];

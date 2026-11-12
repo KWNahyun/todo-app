@@ -1,7 +1,7 @@
 /** 오른쪽 상세 패널: 고른 할 일을 목록을 보면서 바로 고침 (설계 4장 — 대화상자 대신) */
 import { useEffect, useState } from "react";
 import { sessionsOf, taskElapsedMs, type Session } from "@dailytodo/core";
-import { clock, hhmm, toDate } from "../app/dates.ts";
+import { addDays, clock, hhmm, toDate } from "../app/dates.ts";
 import { BACKLOG } from "../app/selectors.ts";
 import { useApp } from "../app/store.tsx";
 import { Close, Trash } from "./icons.tsx";
@@ -77,13 +77,28 @@ function EventDetail({ id, onClose }: PanelProps) {
   const { rep, actions, config } = useApp();
   const e = rep.get<"event">(id);
   const [remind, setRemind] = useDraft(e?.remindMin != null ? String(e.remindMin) : "");
+  const [note, setNote] = useDraft(e?.note ?? "");
   if (!e) return null;
+  const multi = !!e.endDay && e.endDay > e.day;
   return (
     <aside className="panel" aria-label="일정 상세">
       <PanelHead label="일정" onClose={onClose} />
       <TitleInput id={id} value={e.title} label="일정 이름" />
-      <label className="label" htmlFor="ev-day">날짜</label>
-      <input id="ev-day" type="date" className="field" value={e.day} onChange={(x) => x.target.value && actions.moveToDay(id, x.target.value)} />
+      <label className="label" htmlFor="ev-day">{multi ? "기간" : "날짜"}</label>
+      <div className="row" style={{ flexWrap: "wrap" }}>
+        <input id="ev-day" type="date" className="field" style={{ width: 150 }} value={e.day} aria-label="시작 날짜"
+          onChange={(x) => x.target.value && actions.moveToDay(id, x.target.value)} />
+        {multi && <>
+          <span className="muted">~</span>
+          <input type="date" className="field" style={{ width: 150 }} value={e.endDay!} min={addDays(e.day, 1)} aria-label="끝 날짜"
+            onChange={(x) => x.target.value && x.target.value > e.day && actions.update(id, { endDay: x.target.value }, "기간 고침")} />
+        </>}
+        <label className="row" style={{ gap: 6, fontSize: 13 }}>
+          <input type="checkbox" checked={multi}
+            onChange={(x) => actions.update(id, { endDay: x.target.checked ? addDays(e.day, 1) : null }, x.target.checked ? "여러 날 일정으로" : "하루 일정으로")} />
+          여러 날
+        </label>
+      </div>
       <label className="label" htmlFor="ev-time">시각</label>
       <div className="row">
         <input id="ev-time" type="time" className="field" style={{ width: 140 }} value={e.time ?? ""} disabled={e.time == null}
@@ -107,6 +122,10 @@ function EventDetail({ id, onClose }: PanelProps) {
           <div className="faint" style={{ fontSize: 12 }}>0 이면 알리지 않아요.</div>
         </>
       )}
+      <label className="label" htmlFor="ev-note">메모</label>
+      <textarea id="ev-note" className="field" rows={4} value={note} placeholder="장소 · 준비물 · 링크 등"
+        onChange={(x) => setNote(x.target.value)}
+        onBlur={() => note !== (e.note ?? "") && actions.update(id, { note }, "일정 메모 고침")} />
       <div className="row" style={{ marginTop: 8 }}>
         <button className="btn" onClick={() => { actions.remove(id, `일정 '${e.title}' 지움`); onClose(); }}><Trash /> 지우기</button>
       </div>

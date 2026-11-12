@@ -154,7 +154,7 @@ export function computeStats(rep: Replica, period: Period, end: string, basis: B
 
   const checks = rep.list("habitCheck", (c) => daySet.has(c.day));
   const habits = rep
-    .list("habit")
+    .list("habit", (h) => !h.archived)
     .sort((a, b) => ((a.order ?? "") < (b.order ?? "") ? -1 : 1))
     .map((h) => {
       const on = new Set(checks.filter((c) => c.habitId === h.id).map((c) => c.day));

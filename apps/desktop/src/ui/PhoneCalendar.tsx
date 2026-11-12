@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { longDay, toDate } from "../app/dates.ts";
 import { parseScheduleInput } from "../app/parse.ts";
 import { itemsByDay, monthGrid, sameMonth, shiftAnchor } from "../app/schedule.ts";
+import { eventSpan, eventWhen } from "../app/selectors.ts";
 import { useApp, useData, useToday } from "../app/store.tsx";
 import { Left, Right } from "./icons.tsx";
 import { Sheet } from "./Sheet.tsx";
@@ -40,7 +41,11 @@ function DaySheet({ day, onClose, onOpen }: { day: string; onClose: () => void; 
       ))}
       {it.events.map((x) => (
         <button key={x.id} className="pd-row" onClick={() => onOpen(x.id)}>
-          <span className="when num">{x.time ?? "종일"}</span><span className="what">{x.title}</span>
+          <span className="when num">{eventWhen(x, day, "종일")}</span>
+          <span className="what">
+            {x.title}{eventSpan(x) && <span className="faint num"> · {eventSpan(x)}</span>}
+            {x.note && <span className="pd-note">{x.note}</span>}
+          </span>
         </button>
       ))}
       {empty && <div className="empty">이날은 일정 · 마감이 없어요.</div>}
@@ -103,8 +108,8 @@ export function PhoneCalendar({ onOpen, openDay }: { onOpen: (id: string) => voi
         {days.map((d) => {
           const it = items.get(d)!;
           const lines = [
-            ...it.deadlines.map((x) => ({ id: x.id, text: x.title, dl: true })),
-            ...it.events.map((x) => ({ id: x.id, text: x.title, dl: false })),
+            ...it.deadlines.map((x) => ({ id: x.id, text: x.title, dl: true, cont: false, multi: false })),
+            ...it.events.map((x) => ({ id: x.id, text: x.title, dl: false, cont: x.day !== d, multi: !!eventSpan(x) })),
           ];
           const dow = toDate(d).getDay();
           return (
@@ -112,7 +117,7 @@ export function PhoneCalendar({ onOpen, openDay }: { onOpen: (id: string) => voi
               onClick={() => setSel(d)} aria-label={`${longDay(d)} · ${lines.length ? `${lines.length}개` : "없음"}`}>
               <span className={`pm-n${dow === 0 ? " sun" : dow === 6 ? " sat" : ""}`}>{toDate(d).getDate()}</span>
               {lines.slice(0, lines.length > PER_CELL ? PER_CELL - 1 : PER_CELL).map((l) => (
-                <span key={l.id} className={`pm-item${l.dl ? " dl" : ""}`}>{l.text}</span>
+                <span key={l.id} className={`pm-item${l.dl ? " dl" : ""}${l.multi ? " multi" : ""}${l.cont ? " cont" : ""}`}>{l.text}</span>
               ))}
               {lines.length > PER_CELL && <span className="pm-more">+{lines.length - PER_CELL + 1}</span>}
             </button>

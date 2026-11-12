@@ -11,7 +11,7 @@ import { addDays, toDate, dayOf } from "./dates.ts";
 
 export type Parsed =
   | { kind: "task"; title: string; parentTitle?: string }
-  | { kind: "event"; day: string; time: string | null; title: string }
+  | { kind: "event"; day: string; time: string | null; title: string; endDay?: string }
   | { kind: "deadline"; date: string; title: string }
   | { kind: "moment"; text: string }
   | { kind: "error"; message: string };
@@ -65,6 +65,37 @@ export function parseDatePrefix(text: string, today: string): { day: string | nu
   return { day, rest: m[5]!.trim() };
 }
 
+/** '11/14~11/15 여행' · '11/14~15 여행' — 여러 날 일정 (끝 날짜가 앞서면 다음 해로) */
+const RANGE_RE = /^(\d{1,2})[/.](\d{1,2})\s*~\s*(?:(\d{1,2})[/.])?(\d{1,2})\s+(.+)$/;
+
+export function parseRange(text: string, today: string): { day: string; endDay: string; rest: string } | { error: string } | null {
+  const m = RANGE_RE.exec(text.trim());
+  if (!m) return null;
+  const start = parseDatePrefix(`${m[1]}/${m[2]} ${m[5]}`, today);
+  if (start.error || !start.day) return { error: start.error ?? "날짜를 확인해 주세요." };
+  const month = Number(m[3] ?? m[1]);
+  const dd = Number(m[4]);
+  let y = toDate(start.day).getFullYear();
+  const make = (yy: number) => {
+    const d = new Date(yy, month - 1, dd);
+    return d.getMonth() === month - 1 && d.getDate() === dd ? dayOf(d) : null;
+  };
+  let end = make(y);
+  if (!end) return { error: `${month}월 ${dd}일은 없는 날짜예요.` };
+  if (end < start.day) end = make(++y) ?? end;
+  return { day: start.day, endDay: end, rest: start.rest };
+}
+
+/** 여러 날 일정 한 줄 → 일정 (시각이 있으면 첫날 시각) */
+function rangeEvent(text: string, today: string): Extract<Parsed, { kind: "event" | "error" }> | null {
+  const r = parseRange(text, today);
+  if (!r) return null;
+  if ("error" in r) return { kind: "error", message: r.error };
+  if (!r.rest) return { kind: "error", message: "일정 내용을 적어 주세요." };
+  const ev = parseEvent(r.rest) ?? { time: null, title: r.rest };
+  return { kind: "event", day: r.day, ...ev, ...(r.endDay > r.day ? { endDay: r.endDay } : {}) };
+}
+
 export function parseInput(text: string, viewDay: string, today: string): Parsed {
   const t = text.trim();
   if (!t) return { kind: "error", message: "내용을 적어 주세요." };
@@ -80,6 +111,9 @@ export function parseInput(text: string, viewDay: string, today: string): Parsed
     if (!rest) return { kind: "error", message: "마감 이름을 적어 주세요." };
     return { kind: "deadline", date: day, title: rest };
   }
+
+  const range = rangeEvent(t, today);
+  if (range) return range;
 
   // '10/5 13:30 회의' — 날짜 + 시간이 있을 때만 일정 ('3.5 리포트' 같은 할 일과 헷갈리지 않게)
   const dp = parseDatePrefix(t, today);
@@ -113,6 +147,10 @@ export function parseScheduleInput(
   let t = text.trim();
   if (kind === "deadline") t = t.replace(DEADLINE_RE, "$1");
   if (!t) return { kind: "error", message: kind === "event" ? "일정 내용을 적어 주세요." : "마감 이름을 적어 주세요." };
+  if (kind === "event") {
+    const range = rangeEvent(t, today);
+    if (range) return range;
+  }
   const { day, rest, error } = parseDatePrefix(t, today);
   if (error) return { kind: "error", message: error };
   const d = day ?? selectedDay;

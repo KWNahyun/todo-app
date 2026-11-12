@@ -8,7 +8,7 @@ import {
   keyBetween, keysBetween, stopTask, startTimer, isRunning,
   type Replica, type Task,
 } from "@dailytodo/core";
-import { dayOf } from "./dates.ts";
+import { addDays, dayOf, daysBetween } from "./dates.ts";
 import { parseInput, type Parsed } from "./parse.ts";
 import { BACKLOG, siblings } from "./selectors.ts";
 
@@ -141,7 +141,7 @@ export class Actions {
         break;
       }
       case "event":
-        this.track(`일정 '${p.title}' 추가`, [], () => [(id = this.rep.create("event", { day: p.day, time: p.time, title: p.title }))]);
+        this.track(`일정 '${p.title}' 추가`, [], () => [(id = this.rep.create("event", { day: p.day, time: p.time, title: p.title, ...(p.endDay ? { endDay: p.endDay } : {}) }))]);
         break;
       case "deadline":
         this.track(`마감 '${p.title}' 추가`, [], () => [(id = this.rep.create("deadline", { date: p.date, title: p.title }))]);
@@ -154,10 +154,10 @@ export class Actions {
   }
 
   /** 일정표에서: 이미 해석한 일정 · 마감 추가 */
-  addDated(p: { kind: "event"; day: string; time: string | null; title: string } | { kind: "deadline"; date: string; title: string }): string {
+  addDated(p: { kind: "event"; day: string; time: string | null; title: string; endDay?: string } | { kind: "deadline"; date: string; title: string }): string {
     let id = "";
     if (p.kind === "event") {
-      this.track(`일정 '${p.title}' 추가`, [], () => [(id = this.rep.create("event", { day: p.day, time: p.time, title: p.title }))]);
+      this.track(`일정 '${p.title}' 추가`, [], () => [(id = this.rep.create("event", { day: p.day, time: p.time, title: p.title, ...(p.endDay ? { endDay: p.endDay } : {}) }))]);
     } else {
       this.track(`마감 '${p.title}' 추가`, [], () => [(id = this.rep.create("deadline", { date: p.date, title: p.title }))]);
     }
@@ -166,11 +166,14 @@ export class Actions {
 
   /** 일정 · 마감을 다른 날로 (끌어 놓기) */
   moveToDay(id: string, day: string): void {
-    const x = this.rep.get(id) as { type: string; title?: string; day?: string; date?: string } | undefined;
+    const x = this.rep.get(id) as { type: string; title?: string; day?: string; date?: string; endDay?: string | null } | undefined;
     if (!x) return;
     const field = x.type === "deadline" ? "date" : x.type === "event" ? "day" : null;
     if (!field || x[field] === day) return;
-    this.track(`'${x.title ?? ""}' 날짜 옮김`, [id], () => this.rep.put(id, x.type, { [field]: day }));
+    // 여러 날 일정은 기간째 옮김
+    const fields: Record<string, unknown> = { [field]: day };
+    if (x.type === "event" && x.endDay && x.day) fields.endDay = addDays(day, daysBetween(x.day, x.endDay));
+    this.track(`'${x.title ?? ""}' 날짜 옮김`, [id], () => this.rep.put(id, x.type, fields));
   }
 
   // ---------- 할 일 ----------
@@ -391,6 +394,14 @@ export class Actions {
     if (!g || !!g.archived === archived) return;
     this.track(archived ? `목표 '${g.title}' 보관` : `목표 '${g.title}' 다시 꺼냄`, [id], () =>
       this.rep.update<"goal">(id, { archived, archivedOn: archived ? day : null }), archived);
+  }
+
+  /** 습관 보관 · 다시 꺼내기 (체크 기록은 그대로) */
+  archiveHabit(id: string, archived: boolean, day: string): void {
+    const h = this.rep.get<"habit">(id);
+    if (!h || !!h.archived === archived) return;
+    this.track(archived ? `습관 '${h.name}' 보관` : `습관 '${h.name}' 다시 꺼냄`, [id], () =>
+      this.rep.update<"habit">(id, { archived, archivedOn: archived ? day : null }), archived);
   }
 
   /** 이름으로 큰 목표 등록 (이미 있으면 false) */

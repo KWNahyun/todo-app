@@ -1,6 +1,6 @@
 /** 목표: 큰 목표(쌓인 시간 · 목표 시간) · 습관 관리 · 만다라트 (v1 GoalDialog · HabitDialog · mandala.py) */
 import { useEffect, useState } from "react";
-import { keyBetween, mandalaGrid, sortByOrder, type Goal } from "@dailytodo/core";
+import { keyBetween, mandalaGrid, sortByOrder, type Goal, type Habit } from "@dailytodo/core";
 import { featureOn } from "../app/appearance.ts";
 import { addDays, shortDay, toDate } from "../app/dates.ts";
 import { goalMs, hoursText, periodDays } from "../app/stats.ts";
@@ -91,10 +91,37 @@ function GoalRow({ g, week, today }: { g: Goal; week: Set<string>; today: string
   );
 }
 
+/** 보관한 습관: 이름 · 체크한 날 수 · 보관한 날, 다시 꺼내기 · 지우기 */
+function ArchivedHabits({ habits, today }: { habits: Habit[]; today: string }) {
+  const { rep, actions } = useApp();
+  const [open, setOpen] = useState(false);
+  if (!habits.length) return null;
+  return (
+    <div className="archived">
+      <button className="sechead" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? "▾" : "▸"} 보관한 습관 {habits.length}개
+      </button>
+      {open && habits.map((h) => (
+        <div key={h.id} className="row archived-row">
+          <span className="name">{h.name}</span>
+          <span className="muted num" style={{ fontSize: 12.5 }}>
+            {rep.list("habitCheck", (c) => c.habitId === h.id).length}일 체크{h.archivedOn ? ` · ${shortDay(h.archivedOn)} 보관` : ""}
+          </span>
+          <span style={{ flex: 1 }} />
+          <button className="btn" onClick={() => actions.archiveHabit(h.id, false, today)}>다시 꺼내기</button>
+          <button className="icon-btn" aria-label="습관 지우기" onClick={() => actions.removeHabit(h.id)}><Trash /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Habits({ today }: { today: string }) {
   const { rep, actions } = useApp();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
-  const habits = sortByOrder(rep.list("habit"));
+  const all = sortByOrder(rep.list("habit"));
+  const habits = all.filter((h) => !h.archived);
+  const archived = all.filter((h) => h.archived);
   const checked = new Set(rep.list("habitCheck", (c) => days.includes(c.day)).map((c) => `${c.habitId}|${c.day}`));
   return (
     <section className="card">
@@ -113,10 +140,11 @@ function Habits({ today }: { today: string }) {
               return <button key={d} className={on ? "on" : ""} aria-pressed={on} aria-label={`${h.name} ${d}`} onClick={() => actions.toggleHabit(h.id, d)} />;
             })}
           </span>
-          <button className="icon-btn" aria-label="습관 지우기" onClick={() => actions.removeHabit(h.id)}><Trash /></button>
+          <button className="btn btn-ghost habit-archive" title="이제 안 하는 습관 — 체크 칸 · 통계에서 숨기고 기록은 남겨요" onClick={() => actions.archiveHabit(h.id, true, today)}>보관</button>
         </div>
       ))}
       {!habits.length && <div className="empty">매일 하고 싶은 것을 더해 보세요. 예) 운동, 독서 20쪽, 물 2L</div>}
+      <ArchivedHabits habits={archived} today={today} />
       <AddLine placeholder="새 습관" onAdd={(name) => {
         const last = habits[habits.length - 1]?.order;
         actions.create("habit", { name, order: keyBetween(typeof last === "string" ? last : null, null) }, `습관 '${name}' 추가`);
