@@ -40,4 +40,6 @@ Remove-Item "$out.idsig" -ErrorAction SilentlyContinue
 
 # 4) 휴대폰이 연결돼 있으면 설치
 $adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
-if ((& $adb devices) -match "`tdevice") { & $adb install -r $out }
+# adb 가 처음 켜질 때 stderr 에 안내를 써서 Stop 이면 실패로 보임 → Continue
+$ErrorActionPreference = "Continue"
+if ((& $adb devices 2>$null) -match "`tdevice") { & $adb install -r $out }
